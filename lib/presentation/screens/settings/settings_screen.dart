@@ -93,54 +93,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(AppColors.primary);
+    final scheme = Theme.of(context).colorScheme;
+    final primary = scheme.primary;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          _sectionHeader('PLAYBACK'),
+          _sectionHeader('Playback', scheme),
           ListTile(
-            leading: const Icon(Icons.high_quality, color: primary),
+            leading: Icon(Icons.high_quality_rounded, color: primary),
             title: const Text('Streaming Quality'),
             subtitle: Text(_streamQuality.label),
             onTap: () => _pickQuality(isStreaming: true),
           ),
           ListTile(
-            leading: const Icon(Icons.download, color: primary),
+            leading: Icon(Icons.download_rounded, color: primary),
             title: const Text('Download Quality'),
             subtitle: Text(_downloadQuality.label),
             onTap: () => _pickQuality(isStreaming: false),
           ),
           SwitchListTile(
             secondary:
-                const Icon(Icons.signal_cellular_alt, color: primary),
+                Icon(Icons.signal_cellular_alt_rounded, color: primary),
             title: const Text('Stream on Mobile Data'),
             value: _streamOnMobileData,
-            activeColor: primary,
             onChanged: (v) {
               setState(() => _streamOnMobileData = v);
               _save();
             },
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.autorenew, color: primary),
+            secondary: Icon(Icons.autorenew_rounded, color: primary),
             title: const Text('Autoplay'),
             subtitle: const Text('Play similar tracks when queue ends'),
             value: _autoplay,
-            activeColor: primary,
             onChanged: (v) {
               setState(() => _autoplay = v);
               _save();
             },
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.swap_horiz, color: primary),
+            secondary: Icon(Icons.swap_horiz_rounded, color: primary),
             title: const Text('Crossfade'),
             subtitle:
                 const Text('Smooth transition between tracks'),
             value: _crossfade,
-            activeColor: primary,
             onChanged: (v) {
               setState(() => _crossfade = v);
               _save();
@@ -173,45 +171,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-          _sectionHeader('VISUAL'),
+          _sectionHeader('Appearance', scheme),
           BlocBuilder<ThemeCubit, ThemeMode>(
             builder: (ctx, mode) => SwitchListTile(
-              secondary: const Icon(Icons.dark_mode, color: primary),
+              secondary: Icon(Icons.dark_mode_rounded, color: primary),
               title: const Text('Dark Mode'),
               value: mode == ThemeMode.dark,
-              activeColor: primary,
               onChanged: (_) =>
                   ctx.read<ThemeCubit>().toggleTheme(),
             ),
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.lyrics, color: primary),
+            secondary: Icon(Icons.lyrics_rounded, color: primary),
             title: const Text('Show Lyrics'),
             value: _showLyrics,
-            activeColor: primary,
             onChanged: (v) {
               setState(() => _showLyrics = v);
               _save();
             },
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.equalizer, color: primary),
+            secondary: Icon(Icons.equalizer_rounded, color: primary),
             title: const Text('Equalizer'),
             value: _equalizer,
-            activeColor: primary,
             onChanged: (v) {
               setState(() => _equalizer = v);
               _save();
             },
           ),
-          _sectionHeader('ABOUT'),
-          const ListTile(
-            leading: Icon(Icons.info_outline, color: primary),
-            title: Text('Version'),
-            subtitle: Text('SoundFlow v1.0.0'),
+          _sectionHeader('About', scheme),
+          ListTile(
+            leading: Icon(Icons.info_outline_rounded, color: primary),
+            title: const Text('Version'),
+            subtitle: Text(
+                '${AppStrings.appName} v${AppStrings.appVersion}'),
           ),
           ListTile(
-            leading: const Icon(Icons.article_outlined, color: primary),
+            leading:
+                Icon(Icons.article_outlined, color: primary),
             title: const Text('Open Source Licenses'),
             onTap: () => showLicensePage(
               context: context,
@@ -225,16 +222,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _sectionHeader(String text) {
+  Widget _sectionHeader(String text, ColorScheme scheme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white54,
-          fontSize: 12,
-          letterSpacing: 1.5,
-          fontWeight: FontWeight.w600,
+        style: TextStyle(
+          color: scheme.primary,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.1,
         ),
       ),
     );

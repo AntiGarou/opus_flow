@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../../core/constants.dart';
 import '../../../domain/model/track_source.dart';
 import '../../bloc/player/player_cubit.dart';
 import '../../bloc/search/search_cubit.dart';
@@ -43,18 +42,16 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(
                 controller: _controller,
-                style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF333333)),
                 textInputAction: TextInputAction.search,
                 onChanged: (value) => _onQueryChanged(context, value),
                 onSubmitted: (value) {
@@ -62,11 +59,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   context.read<SearchCubit>().search(value);
                 },
                 decoration: InputDecoration(
-                  filled: true,
-                  fillColor:
-                      isDark ? const Color(0xFF282828) : Colors.white,
-                  hintText: 'Search tracks, artists, albums...',
-                  prefixIcon: const Icon(Icons.search),
+                  hintText: 'Search tracks, artists, albums',
+                  prefixIcon: Icon(Icons.search,
+                      color: scheme.onSurfaceVariant),
                   suffixIcon: ValueListenableBuilder<TextEditingValue>(
                     valueListenable: _controller,
                     builder: (_, val, __) {
@@ -81,15 +76,11 @@ class _SearchScreenState extends State<SearchScreen> {
                       );
                     },
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
                 ),
               ),
             ),
             SizedBox(
-              height: 44,
+              height: 48,
               child: BlocBuilder<SearchCubit, SearchState>(
                 builder: (ctx, _) {
                   final source = ctx.read<SearchCubit>().source;
@@ -98,7 +89,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     children: [
                       _SourceChip(
-                        label: 'All Sources',
+                        label: 'All',
                         icon: Icons.public,
                         selected: source == SearchSource.all,
                         onTap: () => ctx
@@ -107,7 +98,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       _SourceChip(
                         label: 'SoundCloud',
-                        icon: Icons.cloud,
+                        icon: Icons.cloud_outlined,
                         selected: source == SearchSource.soundcloud,
                         onTap: () => ctx
                             .read<SearchCubit>()
@@ -115,7 +106,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       _SourceChip(
                         label: 'Yandex Music',
-                        icon: Icons.music_note,
+                        icon: Icons.library_music_outlined,
                         selected: source == SearchSource.yandex,
                         onTap: () => ctx
                             .read<SearchCubit>()
@@ -152,10 +143,11 @@ class _SearchScreenState extends State<SearchScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.error_outline,
-                              color: Colors.grey[400], size: 48),
+                              color: scheme.onSurfaceVariant, size: 48),
                           const SizedBox(height: 12),
                           Text(state.message,
-                              style: TextStyle(color: Colors.grey[400])),
+                              style: TextStyle(
+                                  color: scheme.onSurfaceVariant)),
                         ],
                       ),
                     );
@@ -167,11 +159,11 @@ class _SearchScreenState extends State<SearchScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.search_off,
-                                color: Colors.grey[400], size: 48),
+                                color: scheme.onSurfaceVariant, size: 48),
                             const SizedBox(height: 12),
                             Text('No results found',
-                                style:
-                                    TextStyle(color: Colors.grey[400])),
+                                style: TextStyle(
+                                    color: scheme.onSurfaceVariant)),
                           ],
                         ),
                       );
@@ -215,43 +207,14 @@ class _SourceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(AppColors.primary);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = selected
-        ? primary
-        : (isDark ? const Color(0xFF282828) : Colors.white);
-    final fg = selected
-        ? Colors.white
-        : (isDark ? Colors.white70 : const Color(0xFF333333));
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(18),
-            border: selected
-                ? null
-                : Border.all(color: Colors.grey[700] ?? Colors.grey),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: fg),
-              const SizedBox(width: 6),
-              Text(label,
-                  style: TextStyle(
-                      color: fg,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: FilterChip(
+        selected: selected,
+        onSelected: (_) => onTap(),
+        avatar: Icon(icon, size: 18),
+        label: Text(label),
+        showCheckmark: false,
       ),
     );
   }
@@ -261,19 +224,32 @@ class _GenreGrid extends StatelessWidget {
   final void Function(String genre) onGenreTap;
   const _GenreGrid({required this.onGenreTap});
 
-  static const _genres = [
-    ('Electronic', 0xFF535353),
-    ('Rock', 0xFF8B0000),
-    ('Pop', 0xFFC0265D),
-    ('Hip-Hop', 0xFFBA6B1F),
-    ('Jazz', 0xFF1E3A5F),
-    ('Classical', 0xFF2D4A3E),
-    ('Ambient', 0xFF3D1F5C),
-    ('Folk', 0xFF6B3A2A),
+  static const _genres = <String>[
+    'Electronic',
+    'Rock',
+    'Pop',
+    'Hip-Hop',
+    'Jazz',
+    'Classical',
+    'Ambient',
+    'Folk',
   ];
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Rich, distinct Material 3 tonal tiles.
+    final tiles = <(Color, Color)>[
+      (scheme.primaryContainer, scheme.onPrimaryContainer),
+      (scheme.secondaryContainer, scheme.onSecondaryContainer),
+      (scheme.tertiaryContainer, scheme.onTertiaryContainer),
+      (scheme.errorContainer, scheme.onErrorContainer),
+      (scheme.primary, scheme.onPrimary),
+      (scheme.secondary, scheme.onSecondary),
+      (scheme.tertiary, scheme.onTertiary),
+      (scheme.surfaceContainerHighest, scheme.onSurface),
+    ];
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: GridView.builder(
@@ -285,23 +261,40 @@ class _GenreGrid extends StatelessWidget {
         ),
         itemCount: _genres.length,
         itemBuilder: (_, i) {
-          final (name, color) = _genres[i];
-          return InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => onGenreTap(name),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Color(color),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.all(12),
-              alignment: Alignment.bottomLeft,
-              child: Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+          final name = _genres[i];
+          final (bg, fg) = tiles[i];
+          return Material(
+            color: bg,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => onGenreTap(name),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -4,
+                      bottom: -8,
+                      child: Icon(
+                        Icons.music_note_rounded,
+                        size: 72,
+                        color: fg.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          color: fg,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -317,25 +310,43 @@ class _SearchShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Shimmer.fromColors(
-      baseColor: Colors.grey[800]!,
-      highlightColor: Colors.grey[700]!,
+      baseColor: scheme.surfaceContainerHighest,
+      highlightColor: scheme.surfaceContainerHigh,
       child: ListView.builder(
         itemCount: 8,
         itemBuilder: (_, __) => Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              Container(width: 48, height: 48, color: Colors.white),
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(height: 14, color: Colors.white),
-                    const SizedBox(height: 6),
                     Container(
-                        height: 10, width: 120, color: Colors.white),
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                        )),
+                    const SizedBox(height: 8),
+                    Container(
+                        height: 10,
+                        width: 140,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                        )),
                   ],
                 ),
               ),

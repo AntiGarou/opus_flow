@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/constants.dart';
 import '../../../domain/model/playlist.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/player/player_cubit.dart';
@@ -12,8 +11,6 @@ class LibraryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(AppColors.primary);
-
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -24,11 +21,11 @@ class LibraryScreen extends StatelessWidget {
               builder: (_, __) {
                 final idx = DefaultTabController.of(tabContext).index;
                 if (idx != 0) return const SizedBox.shrink();
-                return FloatingActionButton(
-                  backgroundColor: primary,
+                return FloatingActionButton.extended(
                   onPressed: () =>
                       _showCreatePlaylistDialog(tabContext),
-                  child: const Icon(Icons.add, color: Colors.white),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New playlist'),
                 );
               },
             );
@@ -43,12 +40,12 @@ class LibraryScreen extends StatelessWidget {
                 child: Text(
                   'Your Library',
                   style: TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold),
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4),
                 ),
               ),
               const TabBar(
-                indicatorColor: primary,
-                labelColor: primary,
                 tabs: [
                   Tab(text: 'Playlists'),
                   Tab(text: 'Liked'),
@@ -78,23 +75,21 @@ class _PlaylistsTab extends StatelessWidget {
     return BlocBuilder<LibraryCubit, LibraryState>(
       builder: (ctx, state) {
         if (state.playlists.isEmpty) {
+          final scheme = Theme.of(context).colorScheme;
           return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.playlist_add,
-                    color: Colors.grey[400], size: 64),
+                Icon(Icons.playlist_add_rounded,
+                    color: scheme.onSurfaceVariant, size: 64),
                 const SizedBox(height: 12),
                 Text('No playlists yet',
-                    style: TextStyle(color: Colors.grey[400])),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(AppColors.primary),
-                    foregroundColor: Colors.white,
-                  ),
+                    style: TextStyle(color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 16),
+                FilledButton.tonalIcon(
                   onPressed: () => _showCreatePlaylistDialog(context),
-                  child: const Text('Create a playlist'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create a playlist'),
                 ),
               ],
             ),
@@ -118,20 +113,22 @@ class _PlaylistTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: Container(
         width: 56,
         height: 56,
         decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(6),
+          color: scheme.primaryContainer,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.music_note, color: Colors.white54),
+        child: Icon(Icons.queue_music_rounded,
+            color: scheme.onPrimaryContainer),
       ),
       title: Text(playlist.name,
           style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text('${playlist.tracks.length} tracks',
-          style: TextStyle(color: Colors.grey[500])),
+          style: TextStyle(color: scheme.onSurfaceVariant)),
       trailing: IconButton(
         icon: const Icon(Icons.more_vert),
         onPressed: () => _showPlaylistOptions(context, playlist),
@@ -153,15 +150,16 @@ class _LikedTab extends StatelessWidget {
     return BlocBuilder<LibraryCubit, LibraryState>(
       builder: (ctx, state) {
         if (state.favorites.isEmpty) {
+          final scheme = Theme.of(context).colorScheme;
           return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.favorite_border,
-                    color: Colors.grey[400], size: 64),
+                Icon(Icons.favorite_border_rounded,
+                    color: scheme.onSurfaceVariant, size: 64),
                 const SizedBox(height: 12),
                 Text('Songs you like will appear here',
-                    style: TextStyle(color: Colors.grey[400])),
+                    style: TextStyle(color: scheme.onSurfaceVariant)),
               ],
             ),
           );
@@ -201,25 +199,26 @@ class _PlaylistDetailScreen extends StatelessWidget {
             body: const Center(child: Text('Playlist not found')),
           );
         }
+        final scheme = Theme.of(context).colorScheme;
         return Scaffold(
           appBar: AppBar(
             title: Text(playlist.name),
             actions: [
               if (playlist.tracks.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.play_circle_filled,
-                      color: Color(AppColors.primary), size: 32),
+                IconButton.filled(
+                  icon: const Icon(Icons.play_arrow_rounded),
                   onPressed: () => ctx
                       .read<PlayerCubit>()
                       .playTracks(playlist.tracks, startIndex: 0),
                 ),
+              const SizedBox(width: 8),
             ],
           ),
           body: playlist.tracks.isEmpty
               ? Center(
                   child: Text(
                     'No tracks yet. Add tracks from the search screen.',
-                    style: TextStyle(color: Colors.grey[400]),
+                    style: TextStyle(color: scheme.onSurfaceVariant),
                   ),
                 )
               : ListView.builder(

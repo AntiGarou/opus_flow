@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/constants.dart';
 import '../../domain/model/playback_state.dart';
 import '../../domain/model/track.dart';
 import '../../domain/model/track_source.dart';
@@ -31,7 +30,7 @@ class TrackListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = const Color(AppColors.primary);
+    final scheme = Theme.of(context).colorScheme;
     return BlocBuilder<PlayerCubit, PlaybackState>(
       builder: (context, player) {
         final isCurrent = player.currentTrack?.id == track.id;
@@ -41,19 +40,21 @@ class TrackListItem extends StatelessWidget {
                 library.favorites.any((t) => t.id == track.id);
             return ListTile(
               onTap: onTap,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
               leading: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(10),
                 child: SizedBox(
-                  width: 48,
-                  height: 48,
+                  width: 52,
+                  height: 52,
                   child: track.artworkUrl != null
                       ? CachedNetworkImage(
                           imageUrl: track.artworkUrl!,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => _placeholder(),
-                          errorWidget: (_, __, ___) => _placeholder(),
+                          placeholder: (_, __) => _placeholder(scheme),
+                          errorWidget: (_, __, ___) => _placeholder(scheme),
                         )
-                      : _placeholder(),
+                      : _placeholder(scheme),
                 ),
               ),
               title: Row(
@@ -65,23 +66,21 @@ class TrackListItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: isCurrent
-                            ? primary
-                            : Theme.of(context)
-                                .textTheme
-                                .bodyLarge
-                                ?.color,
+                            ? scheme.primary
+                            : scheme.onSurface,
                         fontWeight:
-                            isCurrent ? FontWeight.bold : FontWeight.w500,
+                            isCurrent ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
                   ),
                   if (isCurrent)
-                    Icon(Icons.equalizer, color: primary, size: 16)
+                    Icon(Icons.graphic_eq_rounded,
+                        color: scheme.primary, size: 16)
                   else
                     Text(
                       _formatDuration(track.duration),
                       style: TextStyle(
-                        color: Colors.grey[500],
+                        color: scheme.onSurfaceVariant,
                         fontSize: 12,
                       ),
                     ),
@@ -91,29 +90,33 @@ class TrackListItem extends StatelessWidget {
                 '${track.artist.name} • ${TrackSource.displayName(track.source)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey[500]),
+                style: TextStyle(color: scheme.onSurfaceVariant),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     icon: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      color: isFav ? primary : Colors.grey[500],
+                      isFav
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      color: isFav
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
                     ),
                     onPressed: () =>
                         context.read<LibraryCubit>().toggleFavorite(track),
                   ),
                   if (onAddToPlaylist != null)
                     IconButton(
-                      icon: Icon(Icons.playlist_add,
-                          color: Colors.grey[500]),
+                      icon: Icon(Icons.playlist_add_rounded,
+                          color: scheme.onSurfaceVariant),
                       onPressed: onAddToPlaylist,
                     ),
                   if (onDownload != null)
                     IconButton(
-                      icon: Icon(Icons.download_outlined,
-                          color: Colors.grey[500]),
+                      icon: Icon(Icons.download_rounded,
+                          color: scheme.onSurfaceVariant),
                       onPressed: onDownload,
                     ),
                 ],
@@ -125,10 +128,11 @@ class TrackListItem extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() {
+  Widget _placeholder(ColorScheme scheme) {
     return Container(
-      color: Colors.grey[800],
-      child: const Icon(Icons.music_note, color: Colors.white54, size: 24),
+      color: scheme.surfaceContainerHighest,
+      child: Icon(Icons.music_note_rounded,
+          color: scheme.onSurfaceVariant, size: 24),
     );
   }
 }
