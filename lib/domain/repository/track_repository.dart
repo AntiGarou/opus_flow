@@ -11,5 +11,8 @@ abstract class TrackRepository {
 
   Future<Track?> getTrack(String id);
 
-  Future<List<Track>> getTracksByGenre(String genre);
+  Future<List<Track>> getTracksByGenre(
+    String genre, {
+    SearchSource source = SearchSource.all,
+  });
 }

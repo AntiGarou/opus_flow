@@ -122,20 +122,33 @@ class TrackRepositoryImpl implements TrackRepository {
   }
 
   @override
-  Future<List<Track>> getTracksByGenre(String genre) async {
-    final results = await Future.wait([
-      _safeFetch(() async =>
+  Future<List<Track>> getTracksByGenre(
+    String genre, {
+    SearchSource source = SearchSource.all,
+  }) async {
+    final futures = <Future<List<Track>>>[];
+
+    if (source == SearchSource.all) {
+      futures.add(_safeFetch(() async =>
           (await _jamendoApi.getByGenre(genre, limit: 20))
               .map(JamendoMapper.toTrack)
-              .toList()),
-      _safeFetch(() async {
+              .toList()));
+      futures.add(_safeFetch(() => _searchDeezer(genre)));
+    }
+    if (source == SearchSource.all || source == SearchSource.spotify) {
+      futures.add(_safeFetch(() async {
         final items = await _spotifyApi.searchByGenre(genre, limit: 20);
         return items.map(SpotifyMapper.toTrack).whereType<Track>().toList();
-      }),
-      _safeFetch(() => _searchSoundCloud(genre)),
-      _safeFetch(() => _searchDeezer(genre)),
-      _safeFetch(() => _searchYandex(genre)),
-    ]);
+      }));
+    }
+    if (source == SearchSource.all || source == SearchSource.soundcloud) {
+      futures.add(_safeFetch(() => _searchSoundCloud(genre)));
+    }
+    if (source == SearchSource.all || source == SearchSource.yandex) {
+      futures.add(_safeFetch(() => _searchYandex(genre)));
+    }
+
+    final results = await Future.wait(futures);
     final combined = results.expand((x) => x).toList();
     return _deduplicateAndSort(combined);
   }

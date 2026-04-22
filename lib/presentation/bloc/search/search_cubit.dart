@@ -84,7 +84,8 @@ class SearchCubit extends Cubit<SearchState> {
     final seq = ++_requestSeq;
     emit(const SearchLoading());
     try {
-      final tracks = await _repository.getTracksByGenre(genre);
+      final tracks =
+          await _repository.getTracksByGenre(genre, source: _source);
       if (seq != _requestSeq) return;
       emit(SearchLoaded(tracks));
     } catch (e) {
