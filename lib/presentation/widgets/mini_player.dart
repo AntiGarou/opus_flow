@@ -130,8 +130,9 @@ class MiniPlayer extends StatelessWidget {
                                 .withValues(alpha: 0.7),
                             size: 20,
                           ),
-                          onPressed: () =>
-                              context.read<PlayerCubit>().stop(),
+                          onPressed: () => context
+                              .read<PlayerCubit>()
+                              .stop(clearQueue: true),
                         ),
                       ],
                     ),
