@@ -73,11 +73,13 @@ class UserClient {
     final total = data['total'] as int? ?? all.length;
     if (fetchAll && total > all.length) {
       final pageSize = all.length;
-      for (var o = pageSize; o < total; o += pageSize) {
-        final next = await client.fetch('/me/playlists',
-            FetchOptions(params: {'limit': pageSize, 'offset': o}));
-        if (next is Map && next['items'] is List) {
-          all.addAll(next['items'] as List);
+      if (pageSize > 0) {
+        for (var o = pageSize; o < total; o += pageSize) {
+          final next = await client.fetch('/me/playlists',
+              FetchOptions(params: {'limit': pageSize, 'offset': o}));
+          if (next is Map && next['items'] is List) {
+            all.addAll(next['items'] as List);
+          }
         }
       }
     }

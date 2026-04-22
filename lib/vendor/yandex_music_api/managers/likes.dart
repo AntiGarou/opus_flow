@@ -14,12 +14,20 @@ class LikesManager {
     return '$userId';
   }
 
-  Future<Map<String, dynamic>?> _toggle(String entity, String action,
-      List<Object> ids, Object? userId) async {
+  Future<Map<String, dynamic>?> _toggle(
+    String entity,
+    String action,
+    List<Object> ids,
+    Object? userId, {
+    String kind = 'likes',
+  }) async {
     final uid = _resolveUserId(userId);
-    final field = entity.endsWith('s') ? '$entity-ids' : '$entity-ids';
+    final singular = entity.endsWith('s')
+        ? entity.substring(0, entity.length - 1)
+        : entity;
+    final field = '$singular-ids';
     final data = await _client.postForm(
-        '/users/$uid/likes/$entity/$action-multiple',
+        '/users/$uid/$kind/$entity/$action-multiple',
         {field: ids.map((e) => '$e').join(',')});
     return data is Map ? Map<String, dynamic>.from(data) : null;
   }
@@ -54,10 +62,14 @@ class LikesManager {
           {Object? userId}) =>
       _toggle('playlists', 'remove', ids, userId);
 
-  Future<List<Map<String, dynamic>>> _list(String entity, Object? userId,
-      {bool withTimestamps = false}) async {
+  Future<List<Map<String, dynamic>>> _list(
+    String entity,
+    Object? userId, {
+    bool withTimestamps = false,
+    String kind = 'likes',
+  }) async {
     final uid = _resolveUserId(userId);
-    final path = '/users/$uid/likes/$entity';
+    final path = '/users/$uid/$kind/$entity';
     final data = await _client.fetch(
       path,
       params:
@@ -97,9 +109,23 @@ class LikesManager {
   /// Dislikes
   Future<Map<String, dynamic>?> addDislikedTracks(List<Object> ids,
           {Object? userId}) =>
-      _toggle('tracks', 'add', ids, userId);
+      _toggle('tracks', 'add', ids, userId, kind: 'dislikes');
 
   Future<Map<String, dynamic>?> removeDislikedTracks(List<Object> ids,
           {Object? userId}) =>
-      _toggle('tracks', 'remove', ids, userId);
+      _toggle('tracks', 'remove', ids, userId, kind: 'dislikes');
+
+  Future<Map<String, dynamic>?> addDislikedArtists(List<Object> ids,
+          {Object? userId}) =>
+      _toggle('artists', 'add', ids, userId, kind: 'dislikes');
+
+  Future<Map<String, dynamic>?> removeDislikedArtists(List<Object> ids,
+          {Object? userId}) =>
+      _toggle('artists', 'remove', ids, userId, kind: 'dislikes');
+
+  Future<List<Map<String, dynamic>>> dislikedTracksList(Object userId) =>
+      _list('tracks', userId, kind: 'dislikes');
+
+  Future<List<Map<String, dynamic>>> dislikedArtistsList(Object userId) =>
+      _list('artists', userId, kind: 'dislikes');
 }

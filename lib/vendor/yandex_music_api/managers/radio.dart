@@ -78,7 +78,10 @@ class RadioManager {
       if (from != null) 'from': from,
     };
     final data = await _client.postForm('/rotor/station/$station/feedback', body);
-    return data is Map && (data['result'] == 'ok' || data.isNotEmpty);
+    // `YandexClient.fetch` unwraps the `{result: ...}` envelope before
+    // returning, so a successful feedback call surfaces here as the string
+    // `'ok'`. Any truthy Map response also counts as success.
+    return data == 'ok' || (data is Map && data.isNotEmpty);
   }
 
   Future<bool> feedbackRadioStarted(String station, {String? from}) =>
