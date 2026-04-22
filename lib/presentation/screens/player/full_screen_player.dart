@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/constants.dart';
 import '../../../data/api/yandex_music_api.dart';
 import '../../../domain/model/playback_state.dart';
 import '../../../domain/model/track.dart';
@@ -30,8 +29,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    const primary = Color(AppColors.primary);
+    final scheme = Theme.of(context).colorScheme;
 
     return BlocBuilder<PlayerCubit, PlaybackState>(
       builder: (ctx, state) {
@@ -51,78 +49,73 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: isDark
-                    ? const [Color(0xFF1a1a2e), Color(0xFF121212)]
-                    : const [Color(0xFFe8f5e9), Color(0xFFF8F8F8)],
+                colors: [
+                  scheme.primaryContainer,
+                  scheme.surface,
+                ],
               ),
             ),
             child: SafeArea(
               child: Column(
                 children: [
-                  _appBar(context, track),
+                  _appBar(context, track, scheme),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _artwork(track),
+                          _artwork(track, scheme),
                           const SizedBox(height: 32),
-                          _titleRow(track, isDark),
-                          const SizedBox(height: 24),
-                          SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              trackHeight: 3,
-                              thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 6),
-                              activeTrackColor: primary,
-                              inactiveTrackColor:
-                                  isDark ? Colors.white24 : Colors.black26,
-                              thumbColor: primary,
-                            ),
-                            child: Slider(
-                              min: 0,
-                              max: total <= 0 ? 1 : total,
-                              value: pos.toDouble().clamp(0, total <= 0 ? 1 : total),
-                              onChangeStart: (v) {
-                                setState(() {
-                                  _dragging = true;
-                                  _dragValue = v;
-                                });
-                              },
-                              onChanged: (v) {
-                                setState(() => _dragValue = v);
-                              },
-                              onChangeEnd: (v) {
-                                setState(() => _dragging = false);
-                                ctx.read<PlayerCubit>().seekTo(
-                                    Duration(milliseconds: v.toInt()));
-                              },
+                          _titleRow(track, scheme),
+                          const SizedBox(height: 16),
+                          Slider(
+                            min: 0,
+                            max: total <= 0 ? 1 : total,
+                            value: pos
+                                .toDouble()
+                                .clamp(0, total <= 0 ? 1 : total),
+                            onChangeStart: (v) {
+                              setState(() {
+                                _dragging = true;
+                                _dragValue = v;
+                              });
+                            },
+                            onChanged: (v) {
+                              setState(() => _dragValue = v);
+                            },
+                            onChangeEnd: (v) {
+                              setState(() => _dragging = false);
+                              ctx.read<PlayerCubit>().seekTo(
+                                  Duration(milliseconds: v.toInt()));
+                            },
+                          ),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                    _formatDuration(Duration(
+                                        milliseconds: pos.toInt())),
+                                    style: TextStyle(
+                                        color: scheme.onSurfaceVariant,
+                                        fontVariations: const [
+                                          FontVariation('wght', 500),
+                                        ])),
+                                Text(
+                                    _formatDuration(state.duration),
+                                    style: TextStyle(
+                                        color: scheme.onSurfaceVariant)),
+                              ],
                             ),
                           ),
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                  _formatDuration(
-                                      Duration(milliseconds: pos.toInt())),
-                                  style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white70
-                                          : Colors.black54)),
-                              Text(
-                                  _formatDuration(state.duration),
-                                  style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white70
-                                          : Colors.black54)),
-                            ],
-                          ),
                           const SizedBox(height: 24),
-                          _controls(ctx, state, isDark),
+                          _controls(ctx, state, scheme),
                           const SizedBox(height: 24),
-                          _bottomControls(ctx, state, track, isDark),
+                          _bottomControls(ctx, state, track, scheme),
                         ],
                       ),
                     ),
@@ -136,15 +129,13 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
     );
   }
 
-  Widget _appBar(BuildContext context, Track track) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fg = isDark ? Colors.white : const Color(0xFF333333);
+  Widget _appBar(BuildContext context, Track track, ColorScheme scheme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.keyboard_arrow_down, color: fg, size: 28),
+            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
             onPressed: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -153,15 +144,16 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
                 Text(
                   'PLAYING FROM',
                   style: TextStyle(
-                    color: fg.withAlpha(180),
+                    color: scheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 11,
                     letterSpacing: 1.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   TrackSource.displayName(track.source),
                   style: TextStyle(
-                    color: fg,
+                    color: scheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -169,7 +161,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.more_horiz, color: fg),
+            icon: const Icon(Icons.more_horiz_rounded),
             onPressed: () => _showTrackMenu(context, track),
           ),
         ],
@@ -177,33 +169,37 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
     );
   }
 
-  Widget _artwork(Track track) {
+  Widget _artwork(Track track, ColorScheme scheme) {
     return AspectRatio(
       aspectRatio: 1,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: track.artworkUrl != null
-            ? CachedNetworkImage(
-                imageUrl: track.artworkUrl!,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => _artPlaceholder(),
-                errorWidget: (_, __, ___) => _artPlaceholder(),
-              )
-            : _artPlaceholder(),
+      child: Hero(
+        tag: 'artwork_${track.id}',
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: track.artworkUrl != null
+              ? CachedNetworkImage(
+                  imageUrl: track.artworkUrl!,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => _artPlaceholder(scheme),
+                  errorWidget: (_, __, ___) => _artPlaceholder(scheme),
+                )
+              : _artPlaceholder(scheme),
+        ),
       ),
     );
   }
 
-  Widget _artPlaceholder() {
+  Widget _artPlaceholder(ColorScheme scheme) {
     return Container(
-      color: Colors.grey[800],
-      child: const Center(
-        child: Icon(Icons.music_note, size: 80, color: Colors.white54),
+      color: scheme.surfaceContainerHighest,
+      child: Center(
+        child: Icon(Icons.music_note_rounded,
+            size: 96, color: scheme.onSurfaceVariant),
       ),
     );
   }
 
-  Widget _titleRow(Track track, bool isDark) {
+  Widget _titleRow(Track track, ColorScheme scheme) {
     return Row(
       children: [
         Expanded(
@@ -212,22 +208,23 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
             children: [
               Text(
                 track.title,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: isDark ? Colors.white : const Color(0xFF333333),
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 '${track.artist.name} • ${TrackSource.displayName(track.source)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: isDark ? Colors.white70 : Colors.black54,
-                  fontSize: 16,
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 15,
                 ),
               ),
             ],
@@ -238,8 +235,10 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
             final isFav = state.favorites.any((t) => t.id == track.id);
             return IconButton(
               icon: Icon(
-                isFav ? Icons.favorite : Icons.favorite_border,
-                color: const Color(AppColors.primary),
+                isFav
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                color: scheme.primary,
                 size: 28,
               ),
               onPressed: () =>
@@ -251,59 +250,61 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
     );
   }
 
-  Widget _controls(BuildContext ctx, PlaybackState state, bool isDark) {
-    const primary = Color(AppColors.primary);
-    final fg = isDark ? Colors.white : const Color(0xFF333333);
+  Widget _controls(BuildContext ctx, PlaybackState state, ColorScheme scheme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
           iconSize: 28,
           icon: Icon(
-            Icons.shuffle,
-            color: state.shuffleEnabled ? primary : fg,
+            Icons.shuffle_rounded,
+            color: state.shuffleEnabled
+                ? scheme.primary
+                : scheme.onSurfaceVariant,
           ),
           onPressed: () => ctx
               .read<PlayerCubit>()
               .setShuffle(!state.shuffleEnabled),
         ),
         IconButton(
-          iconSize: 36,
-          icon: Icon(Icons.skip_previous, color: fg),
+          iconSize: 40,
+          icon: Icon(Icons.skip_previous_rounded, color: scheme.onSurface),
           onPressed: () => ctx.read<PlayerCubit>().previous(),
         ),
-        Container(
-          decoration:
-              const BoxDecoration(shape: BoxShape.circle, color: primary),
-          child: IconButton(
-            iconSize: 40,
-            icon: Icon(
-              state.isPlaying ? Icons.pause : Icons.play_arrow,
-              color: Colors.black,
-            ),
-            onPressed: () {
-              final cubit = ctx.read<PlayerCubit>();
-              if (state.isPlaying) {
-                cubit.pause();
-              } else {
-                cubit.resume();
-              }
-            },
+        FilledButton(
+          style: FilledButton.styleFrom(
+            shape: const CircleBorder(),
+            padding: const EdgeInsets.all(20),
+            backgroundColor: scheme.primary,
+            foregroundColor: scheme.onPrimary,
+          ),
+          onPressed: () {
+            final cubit = ctx.read<PlayerCubit>();
+            if (state.isPlaying) {
+              cubit.pause();
+            } else {
+              cubit.resume();
+            }
+          },
+          child: Icon(
+            state.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            size: 42,
           ),
         ),
         IconButton(
-          iconSize: 36,
-          icon: Icon(Icons.skip_next, color: fg),
+          iconSize: 40,
+          icon: Icon(Icons.skip_next_rounded, color: scheme.onSurface),
           onPressed: () => ctx.read<PlayerCubit>().next(),
         ),
         IconButton(
           iconSize: 28,
           icon: Icon(
             state.repeatMode == PlaybackRepeatMode.one
-                ? Icons.repeat_one
-                : Icons.repeat,
-            color:
-                state.repeatMode != PlaybackRepeatMode.off ? primary : fg,
+                ? Icons.repeat_one_rounded
+                : Icons.repeat_rounded,
+            color: state.repeatMode != PlaybackRepeatMode.off
+                ? scheme.primary
+                : scheme.onSurfaceVariant,
           ),
           onPressed: () {
             final next = switch (state.repeatMode) {
@@ -318,29 +319,27 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
     );
   }
 
-  Widget _bottomControls(
-      BuildContext ctx, PlaybackState state, Track track, bool isDark) {
-    const primary = Color(AppColors.primary);
-    final fg = isDark ? Colors.white70 : Colors.black54;
+  Widget _bottomControls(BuildContext ctx, PlaybackState state, Track track,
+      ColorScheme scheme) {
     final lyricsAvailable = track.source == TrackSource.yandex;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        IconButton(
-          tooltip: 'Queue',
-          icon: Icon(Icons.queue_music, color: fg),
-          onPressed: () => _showQueueSheet(ctx, state),
+        _ChipAction(
+          icon: Icons.queue_music_rounded,
+          label: 'Queue',
+          onTap: () => _showQueueSheet(ctx, state),
         ),
-        IconButton(
-          tooltip: 'Lyrics',
-          icon: Icon(Icons.lyrics,
-              color: lyricsAvailable ? primary : fg),
-          onPressed: () => _showLyricsSheet(ctx, track),
+        _ChipAction(
+          icon: Icons.lyrics_rounded,
+          label: 'Lyrics',
+          highlighted: lyricsAvailable,
+          onTap: () => _showLyricsSheet(ctx, track),
         ),
-        IconButton(
-          tooltip: 'Share',
-          icon: Icon(Icons.share, color: fg),
-          onPressed: () => _shareTrack(ctx, track),
+        _ChipAction(
+          icon: Icons.share_rounded,
+          label: 'Share',
+          onTap: () => _shareTrack(ctx, track),
         ),
       ],
     );
@@ -350,7 +349,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardColor,
+      showDragHandle: true,
       builder: (ctx) {
         return FractionallySizedBox(
           heightFactor: 0.7,
@@ -377,8 +376,8 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
                             child: Text('Lyrics are unavailable'));
                       }
                       return SingleChildScrollView(
-                        child:
-                            Text(text, style: const TextStyle(fontSize: 16)),
+                        child: Text(text,
+                            style: const TextStyle(fontSize: 16, height: 1.5)),
                       );
                     },
                   ),
@@ -403,13 +402,13 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
         : <Track>[];
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
       isScrollControlled: true,
+      showDragHandle: true,
       builder: (ctx) {
         return FractionallySizedBox(
           heightFactor: 0.7,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -418,16 +417,15 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
                   child: Text(
                     'Up next',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ),
                 if (upcoming.isEmpty)
                   const Expanded(
-                    child: Center(
-                      child: Text('Queue is empty'),
-                    ),
+                    child: Center(child: Text('Queue is empty')),
                   )
                 else
                   Expanded(
@@ -436,7 +434,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
                       itemBuilder: (_, i) {
                         final t = upcoming[i];
                         return ListTile(
-                          leading: const Icon(Icons.music_note),
+                          leading: const Icon(Icons.music_note_rounded),
                           title: Text(
                             t.title,
                             maxLines: 1,
@@ -474,14 +472,14 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
   void _showTrackMenu(BuildContext context, Track track) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
+      showDragHandle: true,
       builder: (ctx) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.playlist_add),
+                leading: const Icon(Icons.playlist_add_rounded),
                 title: const Text('Add to playlist'),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -489,7 +487,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.share),
+                leading: const Icon(Icons.share_rounded),
                 title: const Text('Share'),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -506,7 +504,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
   void _showAddToPlaylistSheet(BuildContext context, Track track) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
+      showDragHandle: true,
       builder: (ctx) {
         return BlocBuilder<LibraryCubit, LibraryState>(
           builder: (ctx2, state) {
@@ -525,7 +523,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
               itemBuilder: (_, i) {
                 final p = state.playlists[i];
                 return ListTile(
-                  leading: const Icon(Icons.playlist_play),
+                  leading: const Icon(Icons.playlist_play_rounded),
                   title: Text(p.name),
                   subtitle: Text('${p.tracks.length} tracks'),
                   onTap: () {
@@ -546,6 +544,45 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
           },
         );
       },
+    );
+  }
+}
+
+class _ChipAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool highlighted;
+  final VoidCallback onTap;
+
+  const _ChipAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.highlighted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fg = highlighted ? scheme.primary : scheme.onSurfaceVariant;
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: fg, size: 24),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(
+                    color: fg,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
     );
   }
 }

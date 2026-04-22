@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../../core/constants.dart';
 import '../../../domain/model/track.dart';
 import '../../bloc/home/home_cubit.dart';
 import '../../bloc/library/library_cubit.dart';
@@ -148,10 +147,7 @@ class _SectionHeader extends StatelessWidget {
           if (onSeeAll != null)
             TextButton(
               onPressed: onSeeAll,
-              child: const Text(
-                'See all',
-                style: TextStyle(color: Color(AppColors.primary)),
-              ),
+              child: const Text('See all'),
             ),
         ],
       ),
@@ -171,19 +167,18 @@ class _HomeError extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, color: Colors.grey[400], size: 48),
+          Icon(Icons.error_outline,
+              color: Theme.of(context).colorScheme.onSurfaceVariant, size: 48),
           const SizedBox(height: 12),
           Text(message,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[400])),
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 16),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(AppColors.primary),
-              foregroundColor: Colors.white,
-            ),
+          FilledButton.icon(
             onPressed: onRetry,
-            child: const Text('Retry'),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
           ),
         ],
       ),
@@ -196,8 +191,9 @@ class _HomeShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = Colors.grey[800]!;
-    final hi = Colors.grey[700]!;
+    final scheme = Theme.of(context).colorScheme;
+    final base = scheme.surfaceContainerHigh;
+    final hi = scheme.surfaceContainerHighest;
     return Shimmer.fromColors(
       baseColor: base,
       highlightColor: hi,

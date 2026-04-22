@@ -69,7 +69,7 @@ class SoundFlowApp extends StatelessWidget {
         ],
         child: BlocBuilder<ThemeCubit, ThemeMode>(
           builder: (_, mode) => MaterialApp(
-            title: 'SoundFlow',
+            title: 'OpusFlow',
             debugShowCheckedModeBanner: false,
             themeMode: mode,
             theme: AppTheme.light(),
@@ -107,24 +107,28 @@ class _RootShellState extends State<_RootShell> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const MiniPlayer(),
-          BottomNavigationBar(
-            currentIndex: _tab,
-            onTap: (i) => setState(() => _tab = i),
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_filled),
+          NavigationBar(
+            selectedIndex: _tab,
+            onDestinationSelected: (i) => setState(() => _tab = i),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
                 label: 'Home',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.search),
+              NavigationDestination(
+                icon: Icon(Icons.search_outlined),
+                selectedIcon: Icon(Icons.search_rounded),
                 label: 'Search',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.library_music_rounded),
+              NavigationDestination(
+                icon: Icon(Icons.library_music_outlined),
+                selectedIcon: Icon(Icons.library_music_rounded),
                 label: 'Library',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.settings),
+              NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings_rounded),
                 label: 'Settings',
               ),
             ],

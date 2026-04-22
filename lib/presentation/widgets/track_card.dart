@@ -12,39 +12,41 @@ class TrackCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final subtitle =
         '${track.artist.name} • ${TrackSource.displayName(track.source)}';
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        width: 140,
+        width: 156,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(16),
               child: SizedBox(
-                width: 140,
-                height: 140,
+                width: 156,
+                height: 156,
                 child: track.artworkUrl != null
                     ? CachedNetworkImage(
                         imageUrl: track.artworkUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => _placeholder(),
-                        errorWidget: (_, __, ___) => _placeholder(),
+                        placeholder: (_, __) => _placeholder(scheme),
+                        errorWidget: (_, __, ___) => _placeholder(scheme),
                       )
-                    : _placeholder(),
+                    : _placeholder(scheme),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               track.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
+              style: TextStyle(
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
               ),
             ),
             const SizedBox(height: 2),
@@ -52,7 +54,8 @@ class TrackCard extends StatelessWidget {
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              style: TextStyle(
+                  fontSize: 12, color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -60,10 +63,11 @@ class TrackCard extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() {
+  Widget _placeholder(ColorScheme scheme) {
     return Container(
-      color: Colors.grey[800],
-      child: const Icon(Icons.music_note, color: Colors.white54, size: 40),
+      color: scheme.surfaceContainerHighest,
+      child: Icon(Icons.music_note_rounded,
+          color: scheme.onSurfaceVariant, size: 40),
     );
   }
 }

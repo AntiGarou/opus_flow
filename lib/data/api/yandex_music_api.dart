@@ -215,8 +215,9 @@ class YandexMusicApi {
       final downloadInfoUrl = mp3['downloadInfoUrl'] as String?;
       if (downloadInfoUrl == null) return null;
 
+      final separator = downloadInfoUrl.contains('?') ? '&' : '?';
       final infoResponse = await _dio.get<String>(
-        '$downloadInfoUrl&format=json',
+        '$downloadInfoUrl${separator}format=json',
         options: Options(headers: _headers()),
       );
       final body = infoResponse.data ?? '';
