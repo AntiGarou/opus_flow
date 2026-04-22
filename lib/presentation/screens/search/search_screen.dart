@@ -312,8 +312,8 @@ class _SearchShimmer extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Shimmer.fromColors(
-      baseColor: scheme.surfaceContainerHighest,
-      highlightColor: scheme.surfaceContainerHigh,
+      baseColor: scheme.surfaceContainerHigh,
+      highlightColor: scheme.surfaceContainerHighest,
       child: ListView.builder(
         itemCount: 8,
         itemBuilder: (_, __) => Padding(

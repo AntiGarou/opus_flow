@@ -192,8 +192,8 @@ class _HomeShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final base = scheme.surfaceContainerHighest;
-    final hi = scheme.surfaceContainerHigh;
+    final base = scheme.surfaceContainerHigh;
+    final hi = scheme.surfaceContainerHighest;
     return Shimmer.fromColors(
       baseColor: base,
       highlightColor: hi,
