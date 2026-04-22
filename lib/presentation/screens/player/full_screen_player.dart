@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants.dart';
@@ -121,7 +122,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
                           const SizedBox(height: 24),
                           _controls(ctx, state, isDark),
                           const SizedBox(height: 24),
-                          _bottomControls(ctx, track, isDark),
+                          _bottomControls(ctx, state, track, isDark),
                         ],
                       ),
                     ),
@@ -169,7 +170,7 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
           ),
           IconButton(
             icon: Icon(Icons.more_horiz, color: fg),
-            onPressed: () {},
+            onPressed: () => _showTrackMenu(context, track),
           ),
         ],
       ),
@@ -317,7 +318,8 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
     );
   }
 
-  Widget _bottomControls(BuildContext ctx, Track track, bool isDark) {
+  Widget _bottomControls(
+      BuildContext ctx, PlaybackState state, Track track, bool isDark) {
     const primary = Color(AppColors.primary);
     final fg = isDark ? Colors.white70 : Colors.black54;
     final lyricsAvailable = track.source == TrackSource.yandex;
@@ -325,19 +327,20 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
+          tooltip: 'Queue',
           icon: Icon(Icons.queue_music, color: fg),
-          onPressed: () {},
+          onPressed: () => _showQueueSheet(ctx, state),
         ),
         IconButton(
+          tooltip: 'Lyrics',
           icon: Icon(Icons.lyrics,
               color: lyricsAvailable ? primary : fg),
-          onPressed: lyricsAvailable
-              ? () => _showLyricsSheet(ctx, track)
-              : null,
+          onPressed: () => _showLyricsSheet(ctx, track),
         ),
         IconButton(
+          tooltip: 'Share',
           icon: Icon(Icons.share, color: fg),
-          onPressed: () {},
+          onPressed: () => _shareTrack(ctx, track),
         ),
       ],
     );
@@ -353,22 +356,32 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
           heightFactor: 0.7,
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: FutureBuilder<String?>(
-              future: _fetchLyrics(ctx, track),
-              builder: (_, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final text = snapshot.data;
-                if (text == null || text.isEmpty) {
-                  return const Center(
-                      child: Text('Lyrics are unavailable'));
-                }
-                return SingleChildScrollView(
-                  child: Text(text, style: const TextStyle(fontSize: 16)),
-                );
-              },
-            ),
+            child: track.source != TrackSource.yandex
+                ? Center(
+                    child: Text(
+                      'Lyrics are only available for Yandex Music tracks.\n'
+                      'This track is from ${TrackSource.displayName(track.source)}.',
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : FutureBuilder<String?>(
+                    future: _fetchLyrics(ctx, track),
+                    builder: (_, snapshot) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Center(
+                            child: CircularProgressIndicator());
+                      }
+                      final text = snapshot.data;
+                      if (text == null || text.isEmpty) {
+                        return const Center(
+                            child: Text('Lyrics are unavailable'));
+                      }
+                      return SingleChildScrollView(
+                        child:
+                            Text(text, style: const TextStyle(fontSize: 16)),
+                      );
+                    },
+                  ),
           ),
         );
       },
@@ -382,5 +395,157 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
         ? track.id.substring(3).split(':').first
         : track.id;
     return api.tracksLyrics(id);
+  }
+
+  void _showQueueSheet(BuildContext context, PlaybackState state) {
+    final upcoming = state.queue.length > state.queueIndex + 1
+        ? state.queue.sublist(state.queueIndex + 1)
+        : <Track>[];
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return FractionallySizedBox(
+          heightFactor: 0.7,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: Text(
+                    'Up next',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (upcoming.isEmpty)
+                  const Expanded(
+                    child: Center(
+                      child: Text('Queue is empty'),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: upcoming.length,
+                      itemBuilder: (_, i) {
+                        final t = upcoming[i];
+                        return ListTile(
+                          leading: const Icon(Icons.music_note),
+                          title: Text(
+                            t.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            '${t.artist.name} • ${TrackSource.displayName(t.source)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _shareTrack(BuildContext context, Track track) {
+    final text =
+        '${track.title} — ${track.artist.name} (${TrackSource.displayName(track.source)})';
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied: $text'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showTrackMenu(BuildContext context, Track track) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.playlist_add),
+                title: const Text('Add to playlist'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _showAddToPlaylistSheet(context, track);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Share'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _shareTrack(context, track);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddToPlaylistSheet(BuildContext context, Track track) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      builder: (ctx) {
+        return BlocBuilder<LibraryCubit, LibraryState>(
+          builder: (ctx2, state) {
+            if (state.playlists.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'No playlists yet. Create one from the Library tab.',
+                  textAlign: TextAlign.center,
+                ),
+              );
+            }
+            return ListView.builder(
+              shrinkWrap: true,
+              itemCount: state.playlists.length,
+              itemBuilder: (_, i) {
+                final p = state.playlists[i];
+                return ListTile(
+                  leading: const Icon(Icons.playlist_play),
+                  title: Text(p.name),
+                  subtitle: Text('${p.tracks.length} tracks'),
+                  onTap: () {
+                    ctx2
+                        .read<LibraryCubit>()
+                        .addTrackToPlaylist(p.id, track);
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Added to "${p.name}"'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 }

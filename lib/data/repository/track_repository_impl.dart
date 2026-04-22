@@ -132,6 +132,9 @@ class TrackRepositoryImpl implements TrackRepository {
         final items = await _spotifyApi.searchByGenre(genre, limit: 20);
         return items.map(SpotifyMapper.toTrack).whereType<Track>().toList();
       }),
+      _safeFetch(() => _searchSoundCloud(genre)),
+      _safeFetch(() => _searchDeezer(genre)),
+      _safeFetch(() => _searchYandex(genre)),
     ]);
     final combined = results.expand((x) => x).toList();
     return _deduplicateAndSort(combined);
