@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
@@ -17,11 +19,26 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _controller = TextEditingController();
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onQueryChanged(BuildContext context, String value) {
+    _debounce?.cancel();
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      context.read<SearchCubit>().search('');
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      context.read<SearchCubit>().search(trimmed);
+    });
   }
 
   @override
@@ -39,8 +56,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: TextStyle(
                     color: isDark ? Colors.white : const Color(0xFF333333)),
                 textInputAction: TextInputAction.search,
-                onSubmitted: (value) =>
-                    context.read<SearchCubit>().search(value),
+                onChanged: (value) => _onQueryChanged(context, value),
+                onSubmitted: (value) {
+                  _debounce?.cancel();
+                  context.read<SearchCubit>().search(value);
+                },
                 decoration: InputDecoration(
                   filled: true,
                   fillColor:
@@ -54,6 +74,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       return IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: () {
+                          _debounce?.cancel();
                           _controller.clear();
                           context.read<SearchCubit>().search('');
                         },

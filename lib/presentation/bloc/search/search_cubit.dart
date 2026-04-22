@@ -36,37 +36,60 @@ class SearchError extends SearchState {
 class SearchCubit extends Cubit<SearchState> {
   final TrackRepository _repository;
   SearchSource _source = SearchSource.all;
+  String _lastQuery = '';
+  String? _lastGenre;
+  int _requestSeq = 0;
 
   SearchCubit(this._repository) : super(const SearchInitial());
 
   SearchSource get source => _source;
+  String get lastQuery => _lastQuery;
 
   void setSource(SearchSource source) {
+    if (_source == source) return;
     _source = source;
-    emit(const SearchInitial());
+    if (_lastQuery.isNotEmpty) {
+      search(_lastQuery);
+    } else if (_lastGenre != null) {
+      searchByGenre(_lastGenre!);
+    } else {
+      emit(const SearchInitial());
+    }
   }
 
   Future<void> search(String query) async {
-    if (query.trim().isEmpty) {
+    final trimmed = query.trim();
+    _lastQuery = trimmed;
+    _lastGenre = null;
+    if (trimmed.isEmpty) {
       emit(const SearchInitial());
       return;
     }
+    final seq = ++_requestSeq;
     emit(const SearchLoading());
     try {
       final tracks =
-          await _repository.searchTracks(query, source: _source);
+          await _repository.searchTracks(trimmed, source: _source);
+      if (seq != _requestSeq) return;
       emit(SearchLoaded(tracks));
     } catch (e) {
+      if (seq != _requestSeq) return;
       emit(SearchError(e.toString()));
     }
   }
 
   Future<void> searchByGenre(String genre) async {
+    _lastQuery = '';
+    _lastGenre = genre;
+    final seq = ++_requestSeq;
     emit(const SearchLoading());
     try {
-      final tracks = await _repository.getTracksByGenre(genre);
+      final tracks =
+          await _repository.getTracksByGenre(genre, source: _source);
+      if (seq != _requestSeq) return;
       emit(SearchLoaded(tracks));
     } catch (e) {
+      if (seq != _requestSeq) return;
       emit(SearchError(e.toString()));
     }
   }
