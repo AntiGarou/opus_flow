@@ -267,12 +267,13 @@ class TrackRepositoryImpl implements TrackRepository {
 
     int score(Track t) {
       var s = 0;
-      if (t.streamUrl != null && t.streamUrl!.isNotEmpty) s += 100;
-      // YouTube tracks don't carry a streamUrl at the mapper level (it's
-      // resolved on demand via youtube_explode_dart) but they DO play
-      // full-length, so give them the same playability credit.
-      if (t.source == TrackSource.youtube ||
+      if (t.streamUrl != null && t.streamUrl!.isNotEmpty) {
+        s += 100;
+      } else if (t.source == TrackSource.youtube ||
           t.source == TrackSource.yandex) {
+        // YouTube tracks don't carry a streamUrl at the mapper level (it's
+        // resolved on demand via youtube_explode_dart) but they DO play
+        // full-length, so give them the same playability credit.
         s += 100;
       }
       if (!t.isExplicit) s += 20;

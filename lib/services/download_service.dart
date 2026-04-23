@@ -162,14 +162,22 @@ class DownloadService {
       ));
       return file;
     } catch (e) {
-      debugPrint('DownloadService.downloadTrack failed: $e');
+      final cancelled =
+          e is DioException && e.type == DioExceptionType.cancel;
+      if (cancelled) {
+        debugPrint('DownloadService.downloadTrack cancelled: ${track.id}');
+      } else {
+        debugPrint('DownloadService.downloadTrack failed: $e');
+      }
       if (await file.exists()) {
         await file.delete();
       }
-      _progressController.add(DownloadProgress(
-        trackId: track.id,
-        failed: true,
-      ));
+      if (!cancelled) {
+        _progressController.add(DownloadProgress(
+          trackId: track.id,
+          failed: true,
+        ));
+      }
       return null;
     } finally {
       _cancellers.remove(track.id);
