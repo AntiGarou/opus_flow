@@ -100,7 +100,11 @@ class YouTubeMatchResolver {
         best = v;
       }
     }
-    return best ?? candidates.first;
+    // Require at least one positive signal (title overlap, artist overlap,
+    // or duration proximity). Returning null lets _findMatch try the next
+    // query instead of locking in a bad pick like an all-karaoke result set.
+    if (best != null && bestScore > 0) return best;
+    return null;
   }
 
   Set<String> _tokens(String input) {
