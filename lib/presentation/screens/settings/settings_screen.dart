@@ -61,7 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('SoundCloud • YouTube Music • Deezer'),
             subtitle: const Text(
               'Always on — no keys or login required. Full-length audio from '
-              'SoundCloud & YouTube Music; 30 s previews from Deezer.',
+              'SoundCloud & YouTube Music. Spotify and Deezer tracks play '
+              'full-length via a YouTube match instead of a 30 s preview.',
             ),
           ),
           _sectionHeader('Optional sources', scheme),

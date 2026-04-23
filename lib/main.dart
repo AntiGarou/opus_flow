@@ -26,6 +26,7 @@ import 'presentation/theme/app_theme.dart';
 import 'presentation/widgets/mini_player.dart';
 import 'services/audio_player_service.dart';
 import 'services/download_service.dart';
+import 'services/youtube_match_resolver.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +49,7 @@ class SoundFlowApp extends StatelessWidget {
     final yandexMusicApi = YandexMusicApi(credentials: credentials);
     final spotifyApi = SpotifyApi(credentials: credentials);
     final youTubeMusicApi = YouTubeMusicApi();
+    final youTubeMatchResolver = YouTubeMatchResolver(youTubeMusicApi);
     final trackRepository = TrackRepositoryImpl(
       soundCloudApi,
       jamendoApi,
@@ -60,11 +62,13 @@ class SoundFlowApp extends StatelessWidget {
       soundCloudApi: soundCloudApi,
       yandexMusicApi: yandexMusicApi,
       youTubeMusicApi: youTubeMusicApi,
+      youTubeMatchResolver: youTubeMatchResolver,
     );
     final audioService = AudioPlayerService(
       soundCloudApi,
       yandexMusicApi: yandexMusicApi,
       youTubeMusicApi: youTubeMusicApi,
+      youTubeMatchResolver: youTubeMatchResolver,
       downloadService: downloadService,
     );
 
