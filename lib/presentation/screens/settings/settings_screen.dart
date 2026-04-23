@@ -55,7 +55,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          _sectionHeader('Sources', scheme),
+          _sectionHeader('Built-in sources', scheme),
+          ListTile(
+            leading: Icon(Icons.check_circle_rounded, color: scheme.primary),
+            title: const Text('SoundCloud • YouTube Music • Deezer'),
+            subtitle: const Text(
+              'Always on — no keys or login required. Full-length audio from '
+              'SoundCloud & YouTube Music; 30 s previews from Deezer.',
+            ),
+          ),
+          _sectionHeader('Optional sources', scheme),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'Leave these blank to stick with built-in sources. Add credentials '
+              'only if you already have them.',
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+            ),
+          ),
           _SpotifyTile(store: credentials),
           _YandexTile(store: credentials),
           _JamendoTile(store: credentials),

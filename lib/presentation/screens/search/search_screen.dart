@@ -105,6 +105,14 @@ class _SearchScreenState extends State<SearchScreen> {
                             .setSource(SearchSource.soundcloud),
                       ),
                       _SourceChip(
+                        label: 'YouTube Music',
+                        icon: Icons.ondemand_video_rounded,
+                        selected: source == SearchSource.youtube,
+                        onTap: () => ctx
+                            .read<SearchCubit>()
+                            .setSource(SearchSource.youtube),
+                      ),
+                      _SourceChip(
                         label: 'Yandex Music',
                         icon: Icons.library_music_outlined,
                         selected: source == SearchSource.yandex,

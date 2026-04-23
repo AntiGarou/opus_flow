@@ -7,6 +7,7 @@ import 'data/api/soundcloud_api.dart';
 import 'data/api/soundcloud_client_id_provider.dart';
 import 'data/api/spotify_api.dart';
 import 'data/api/yandex_music_api.dart';
+import 'data/api/youtube_music_api.dart';
 import 'data/preferences/credentials_store.dart';
 import 'data/preferences/playlist_storage.dart';
 import 'data/repository/track_repository_impl.dart';
@@ -46,20 +47,24 @@ class SoundFlowApp extends StatelessWidget {
     final deezerApi = DeezerApi();
     final yandexMusicApi = YandexMusicApi(credentials: credentials);
     final spotifyApi = SpotifyApi(credentials: credentials);
+    final youTubeMusicApi = YouTubeMusicApi();
     final trackRepository = TrackRepositoryImpl(
       soundCloudApi,
       jamendoApi,
       deezerApi,
       yandexMusicApi,
       spotifyApi,
+      youTubeMusicApi,
     );
     final downloadService = DownloadService(
       soundCloudApi: soundCloudApi,
       yandexMusicApi: yandexMusicApi,
+      youTubeMusicApi: youTubeMusicApi,
     );
     final audioService = AudioPlayerService(
       soundCloudApi,
       yandexMusicApi: yandexMusicApi,
+      youTubeMusicApi: youTubeMusicApi,
       downloadService: downloadService,
     );
 

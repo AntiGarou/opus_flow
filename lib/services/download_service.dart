@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../data/api/soundcloud_api.dart';
 import '../data/api/yandex_music_api.dart';
+import '../data/api/youtube_music_api.dart';
 import '../domain/model/album.dart';
 import '../domain/model/artist.dart';
 import '../domain/model/track.dart';
@@ -40,6 +41,7 @@ class DownloadService {
   final Dio _dio;
   final SoundCloudApi? _soundCloudApi;
   final YandexMusicApi? _yandexMusicApi;
+  final YouTubeMusicApi? _youTubeMusicApi;
 
   final StreamController<DownloadProgress> _progressController =
       StreamController<DownloadProgress>.broadcast();
@@ -50,9 +52,11 @@ class DownloadService {
     Dio? dio,
     SoundCloudApi? soundCloudApi,
     YandexMusicApi? yandexMusicApi,
+    YouTubeMusicApi? youTubeMusicApi,
   })  : _dio = dio ?? Dio(),
         _soundCloudApi = soundCloudApi,
-        _yandexMusicApi = yandexMusicApi;
+        _yandexMusicApi = yandexMusicApi,
+        _youTubeMusicApi = youTubeMusicApi;
 
   Stream<DownloadProgress> get progressStream => _progressController.stream;
 
@@ -103,6 +107,10 @@ class DownloadService {
         track.streamUrl!.contains('api-v2.soundcloud.com') &&
         _soundCloudApi != null) {
       return _soundCloudApi.resolveStreamUrl(track.streamUrl!);
+    }
+    if (track.source == TrackSource.youtube && _youTubeMusicApi != null) {
+      final id = track.id.startsWith('yt_') ? track.id.substring(3) : track.id;
+      return _youTubeMusicApi.getStreamUrl(id);
     }
     return track.streamUrl;
   }

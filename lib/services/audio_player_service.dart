@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../data/api/soundcloud_api.dart';
 import '../data/api/yandex_music_api.dart';
+import '../data/api/youtube_music_api.dart';
 import '../domain/model/playback_state.dart';
 import '../domain/model/track.dart';
 import '../domain/model/track_source.dart';
@@ -14,6 +15,7 @@ class AudioPlayerService {
   final AudioPlayer _player;
   final SoundCloudApi _soundCloudApi;
   final YandexMusicApi? _yandexMusicApi;
+  final YouTubeMusicApi? _youTubeMusicApi;
   final DownloadService? _downloadService;
 
   final StreamController<PlaybackState> _stateController =
@@ -30,9 +32,11 @@ class AudioPlayerService {
     this._soundCloudApi, {
     AudioPlayer? player,
     YandexMusicApi? yandexMusicApi,
+    YouTubeMusicApi? youTubeMusicApi,
     DownloadService? downloadService,
   })  : _player = player ?? AudioPlayer(),
         _yandexMusicApi = yandexMusicApi,
+        _youTubeMusicApi = youTubeMusicApi,
         _downloadService = downloadService {
     _listenToPlayer();
   }
@@ -134,6 +138,10 @@ class AudioPlayerService {
         track.streamUrl != null &&
         track.streamUrl!.contains('api-v2.soundcloud.com')) {
       return _soundCloudApi.resolveStreamUrl(track.streamUrl!);
+    }
+    if (track.source == TrackSource.youtube && _youTubeMusicApi != null) {
+      final id = track.id.startsWith('yt_') ? track.id.substring(3) : track.id;
+      return _youTubeMusicApi.getStreamUrl(id);
     }
     return track.streamUrl;
   }

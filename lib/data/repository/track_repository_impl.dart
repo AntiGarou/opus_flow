@@ -8,11 +8,13 @@ import '../api/jamendo_api.dart';
 import '../api/soundcloud_api.dart';
 import '../api/spotify_api.dart';
 import '../api/yandex_music_api.dart';
+import '../api/youtube_music_api.dart';
 import '../mapper/deezer_mapper.dart';
 import '../mapper/jamendo_mapper.dart';
 import '../mapper/soundcloud_mapper.dart';
 import '../mapper/spotify_mapper.dart';
 import '../mapper/yandex_music_mapper.dart';
+import '../mapper/youtube_music_mapper.dart';
 
 class TrackRepositoryImpl implements TrackRepository {
   final SoundCloudApi _soundCloudApi;
@@ -20,6 +22,7 @@ class TrackRepositoryImpl implements TrackRepository {
   final DeezerApi _deezerApi;
   final YandexMusicApi _yandexMusicApi;
   final SpotifyApi _spotifyApi;
+  final YouTubeMusicApi _youTubeMusicApi;
 
   TrackRepositoryImpl(
     this._soundCloudApi,
@@ -27,6 +30,7 @@ class TrackRepositoryImpl implements TrackRepository {
     this._deezerApi,
     this._yandexMusicApi,
     this._spotifyApi,
+    this._youTubeMusicApi,
   );
 
   @override
@@ -50,6 +54,9 @@ class TrackRepositoryImpl implements TrackRepository {
     }
     if (source == SearchSource.all || source == SearchSource.spotify) {
       futures.add(_safeFetch(() => _searchSpotify(query)));
+    }
+    if (source == SearchSource.all || source == SearchSource.youtube) {
+      futures.add(_safeFetch(() => _searchYouTube(query)));
     }
 
     final results = await Future.wait(futures);
@@ -89,6 +96,10 @@ class TrackRepositoryImpl implements TrackRepository {
             .whereType<Track>()
             .toList();
       }),
+      _safeFetch(() async {
+        final items = await _youTubeMusicApi.getTrending(limit: 20);
+        return items.map(YouTubeMusicMapper.toTrack).toList();
+      }),
     ]);
     final combined = results.expand((x) => x).toList();
     return _deduplicateAndSort(combined);
@@ -118,6 +129,10 @@ class TrackRepositoryImpl implements TrackRepository {
       final raw = await _spotifyApi.getTrack(id.substring(3));
       return raw == null ? null : SpotifyMapper.toTrack(raw);
     }
+    if (id.startsWith('yt_')) {
+      final raw = await _youTubeMusicApi.getVideo(id.substring(3));
+      return raw == null ? null : YouTubeMusicMapper.toTrack(raw);
+    }
     return null;
   }
 
@@ -146,6 +161,12 @@ class TrackRepositoryImpl implements TrackRepository {
     }
     if (source == SearchSource.all || source == SearchSource.yandex) {
       futures.add(_safeFetch(() => _searchYandex(genre)));
+    }
+    if (source == SearchSource.all || source == SearchSource.youtube) {
+      futures.add(_safeFetch(() async {
+        final items = await _youTubeMusicApi.searchByGenre(genre, limit: 20);
+        return items.map(YouTubeMusicMapper.toTrack).toList();
+      }));
     }
 
     final results = await Future.wait(futures);
@@ -193,6 +214,11 @@ class TrackRepositoryImpl implements TrackRepository {
     return raws.map(SpotifyMapper.toTrack).whereType<Track>().toList();
   }
 
+  Future<List<Track>> _searchYouTube(String q) async {
+    final videos = await _youTubeMusicApi.searchTracks(q, limit: 20);
+    return videos.map(YouTubeMusicMapper.toTrack).toList();
+  }
+
   List<Track> _deduplicateAndSort(List<Track> tracks) {
     final byId = <String, Track>{};
     for (final t in tracks) {
@@ -219,7 +245,11 @@ class TrackRepositoryImpl implements TrackRepository {
     }
 
     int sourcePriority(String s) {
+      // Higher = preferred. Sources that return full-length audio without
+      // credentials (YouTube, SoundCloud) outrank preview-only sources.
       switch (s) {
+        case TrackSource.youtube:
+          return 5;
         case TrackSource.yandex:
           return 4;
         case TrackSource.soundcloud:
@@ -238,6 +268,13 @@ class TrackRepositoryImpl implements TrackRepository {
     int score(Track t) {
       var s = 0;
       if (t.streamUrl != null && t.streamUrl!.isNotEmpty) s += 100;
+      // YouTube tracks don't carry a streamUrl at the mapper level (it's
+      // resolved on demand via youtube_explode_dart) but they DO play
+      // full-length, so give them the same playability credit.
+      if (t.source == TrackSource.youtube ||
+          t.source == TrackSource.yandex) {
+        s += 100;
+      }
       if (!t.isExplicit) s += 20;
       s += sourcePriority(t.source);
       if (t.artworkUrl != null && t.artworkUrl!.isNotEmpty) s += 1;
