@@ -1,12 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../data/api/yandex_music_api.dart';
 import '../../../domain/model/playback_state.dart';
 import '../../../domain/model/track.dart';
 import '../../../domain/model/track_source.dart';
+import '../../bloc/downloads/downloads_cubit.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/player/player_cubit.dart';
 
@@ -457,15 +458,25 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
     );
   }
 
-  void _shareTrack(BuildContext context, Track track) {
-    final text =
-        '${track.title} — ${track.artist.name} (${TrackSource.displayName(track.source)})';
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied: $text'),
-        duration: const Duration(seconds: 2),
-      ),
+  Future<void> _shareTrack(BuildContext context, Track track) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final subject =
+        '${track.title} — ${track.artist.name}';
+    final buffer = StringBuffer()
+      ..writeln(track.title)
+      ..writeln('by ${track.artist.name}');
+    if (track.album?.title != null && track.album!.title.isNotEmpty) {
+      buffer.writeln('Album: ${track.album!.title}');
+    }
+    buffer.writeln('Source: ${TrackSource.displayName(track.source)}');
+    if (track.streamUrl != null && track.streamUrl!.startsWith('http')) {
+      buffer.writeln(track.streamUrl);
+    }
+    await Share.share(
+      buffer.toString().trim(),
+      subject: subject,
+      sharePositionOrigin:
+          box != null ? box.localToGlobal(Offset.zero) & box.size : null,
     );
   }
 
@@ -475,26 +486,58 @@ class _FullScreenPlayerState extends State<FullScreenPlayer> {
       showDragHandle: true,
       builder: (ctx) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.playlist_add_rounded),
-                title: const Text('Add to playlist'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _showAddToPlaylistSheet(context, track);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.share_rounded),
-                title: const Text('Share'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _shareTrack(context, track);
-                },
-              ),
-            ],
+          child: BlocBuilder<DownloadsCubit, DownloadsState>(
+            builder: (ctx2, dl) {
+              final downloaded = dl.isDownloaded(track.id);
+              final downloading = dl.isDownloading(track.id);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.playlist_add_rounded),
+                    title: const Text('Add to playlist'),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _showAddToPlaylistSheet(context, track);
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(downloaded
+                        ? Icons.download_done_rounded
+                        : Icons.download_rounded),
+                    title: Text(downloaded
+                        ? 'Remove download'
+                        : downloading
+                            ? 'Cancel download'
+                            : 'Download for offline'),
+                    subtitle: downloading
+                        ? LinearProgressIndicator(
+                            value: dl.inProgress[track.id]?.fraction ?? 0,
+                          )
+                        : null,
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      final cubit = ctx2.read<DownloadsCubit>();
+                      if (downloaded) {
+                        cubit.delete(track.id);
+                      } else if (downloading) {
+                        cubit.cancel(track.id);
+                      } else {
+                        cubit.download(track);
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.share_rounded),
+                    title: const Text('Share'),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _shareTrack(context, track);
+                    },
+                  ),
+                ],
+              );
+            },
           ),
         );
       },

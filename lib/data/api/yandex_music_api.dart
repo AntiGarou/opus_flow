@@ -4,17 +4,32 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../preferences/credentials_store.dart';
+
+/// Yandex Music API client backed by [CredentialsStore].
+///
+/// Most endpoints work without auth (search, landing), but download-info
+/// and lyrics require a valid OAuth token. The token is read lazily from the
+/// store so the user can paste it in Settings without restart.
 class YandexMusicApi {
   static const _baseUrl = 'https://api.music.yandex.net';
   static const _clientHeader = 'YandexMusicAndroid/24023621';
   static const _lyricsKey = 'p93jhgh689SBReK6ghtw62';
 
   final Dio _dio;
-  final String? _oauthToken;
+  final CredentialsStore? _credentials;
 
-  YandexMusicApi({Dio? dio, String? oauthToken})
+  YandexMusicApi({Dio? dio, CredentialsStore? credentials})
       : _dio = dio ?? Dio(),
-        _oauthToken = oauthToken;
+        _credentials = credentials;
+
+  String? get _oauthToken {
+    final snap = _credentials?.snapshot;
+    if (snap == null) return null;
+    return snap.yandexOAuthToken.isEmpty ? null : snap.yandexOAuthToken;
+  }
+
+  bool get hasOAuthToken => _oauthToken != null;
 
   Map<String, String> _headers() {
     final headers = <String, String>{
@@ -32,6 +47,7 @@ class YandexMusicApi {
     Map<String, dynamic>? query,
   }) async {
     try {
+      await _credentials?.ensureLoaded();
       final response = await _dio.get<Map<String, dynamic>>(
         '$_baseUrl$path',
         queryParameters: query,
@@ -50,6 +66,7 @@ class YandexMusicApi {
     Map<String, dynamic>? query,
   }) async {
     try {
+      await _credentials?.ensureLoaded();
       final response = await _dio.post<Map<String, dynamic>>(
         '$_baseUrl$path',
         queryParameters: query,
@@ -111,12 +128,19 @@ class YandexMusicApi {
         'sign': signed.value,
       });
       final download = data?['result']?['downloadUrl'] as String?;
-      if (download == null) return null;
-      final lyrics = await _dio.get<String>(
-        download,
-        options: Options(responseType: ResponseType.plain),
-      );
-      return lyrics.data;
+      if (download != null) {
+        final lyrics = await _dio.get<String>(
+          download,
+          options: Options(responseType: ResponseType.plain),
+        );
+        final text = lyrics.data;
+        if (text != null && text.isNotEmpty) return text;
+      }
+      // Fallback: /supplement/lyrics has plain fullLyrics for a subset of
+      // tracks (e.g. older catalog) and doesn't require the HMAC dance.
+      final supp = await trackSupplement(trackId);
+      final lyricsObj = supp?['lyrics'] as Map<String, dynamic>?;
+      return lyricsObj?['fullLyrics'] as String?;
     } catch (e) {
       debugPrint('YandexMusicApi.tracksLyrics failed: $e');
       return null;
@@ -201,18 +225,35 @@ class YandexMusicApi {
     await _post('/play-audio', data: body);
   }
 
+  /// Resolve the highest-quality direct stream URL for a Yandex track.
+  /// Quality restrictions removed — we prefer 320kbps mp3 when available.
   Future<String?> getTrackStreamUrl(String trackId) async {
     try {
       final downloadInfos = await trackDownloadInfo(trackId);
       if (downloadInfos.isEmpty) return null;
-      final mp3 = downloadInfos.firstWhere(
-        (d) => d['codec'] == 'mp3' && (d['bitrateInKbps'] ?? 0) == 192,
-        orElse: () => downloadInfos.firstWhere(
-          (d) => d['codec'] == 'mp3',
-          orElse: () => downloadInfos.first,
-        ),
-      );
-      final downloadInfoUrl = mp3['downloadInfoUrl'] as String?;
+
+      int bitrate(Map<String, dynamic> info) =>
+          (info['bitrateInKbps'] as num?)?.toInt() ?? 0;
+      int codecRank(Map<String, dynamic> info) {
+        // Prefer mp3 (widest just_audio support), then aac, then the rest.
+        switch (info['codec']) {
+          case 'mp3':
+            return 2;
+          case 'aac':
+            return 1;
+          default:
+            return 0;
+        }
+      }
+
+      final sorted = List<Map<String, dynamic>>.from(downloadInfos);
+      sorted.sort((a, b) {
+        final c = codecRank(b).compareTo(codecRank(a));
+        if (c != 0) return c;
+        return bitrate(b).compareTo(bitrate(a));
+      });
+      final best = sorted.first;
+      final downloadInfoUrl = best['downloadInfoUrl'] as String?;
       if (downloadInfoUrl == null) return null;
 
       final separator = downloadInfoUrl.contains('?') ? '&' : '?';
@@ -242,5 +283,13 @@ class YandexMusicApi {
   Future<Map<String, dynamic>?> userLikedTracks(String userId) async {
     final data = await _get('/users/$userId/likes/tracks');
     return data?['result'] as Map<String, dynamic>?;
+  }
+
+  /// Probe whether the current OAuth token is valid.
+  Future<bool> validateToken() async {
+    await _credentials?.ensureLoaded();
+    if (!hasOAuthToken) return false;
+    final data = await _get('/account/status');
+    return (data?['result'] as Map?)?['account'] != null;
   }
 }
