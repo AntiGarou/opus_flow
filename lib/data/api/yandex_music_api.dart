@@ -287,6 +287,7 @@ class YandexMusicApi {
 
   /// Probe whether the current OAuth token is valid.
   Future<bool> validateToken() async {
+    await _credentials?.ensureLoaded();
     if (!hasOAuthToken) return false;
     final data = await _get('/account/status');
     return (data?['result'] as Map?)?['account'] != null;

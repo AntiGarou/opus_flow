@@ -21,11 +21,12 @@ class DownloadsState extends Equatable {
     List<Track>? tracks,
     Map<String, DownloadProgress>? inProgress,
     String? lastError,
+    bool clearLastError = false,
   }) {
     return DownloadsState(
       tracks: tracks ?? this.tracks,
       inProgress: inProgress ?? this.inProgress,
-      lastError: lastError,
+      lastError: clearLastError ? null : (lastError ?? this.lastError),
     );
   }
 
@@ -81,12 +82,13 @@ class DownloadsCubit extends Cubit<DownloadsState> {
     } else {
       updated[p.trackId] = p;
     }
-    emit(state.copyWith(
-      inProgress: updated,
-      lastError: p.failed ? 'Download failed' : null,
-    ));
-    if (p.done) {
+    if (p.failed) {
+      emit(state.copyWith(inProgress: updated, lastError: 'Download failed'));
+    } else if (p.done) {
+      emit(state.copyWith(inProgress: updated, clearLastError: true));
       refresh();
+    } else {
+      emit(state.copyWith(inProgress: updated));
     }
   }
 
