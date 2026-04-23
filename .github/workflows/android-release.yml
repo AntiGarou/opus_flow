@@ -35,7 +35,17 @@ jobs:
         run: flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
+          JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
+        run: |
+          flutter build apk --release \
+            --dart-define=SPOTIFY_CLIENT_ID="${SPOTIFY_CLIENT_ID}" \
+            --dart-define=SPOTIFY_CLIENT_SECRET="${SPOTIFY_CLIENT_SECRET}" \
+            --dart-define=YANDEX_OAUTH_TOKEN="${YANDEX_OAUTH_TOKEN}" \
+            --dart-define=JAMENDO_CLIENT_ID="${JAMENDO_CLIENT_ID}"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/model/playback_state.dart';
 import '../../domain/model/track.dart';
 import '../../domain/model/track_source.dart';
+import '../bloc/downloads/downloads_cubit.dart';
 import '../bloc/library/library_cubit.dart';
 import '../bloc/player/player_cubit.dart';
 
@@ -92,34 +93,70 @@ class TrackListItem extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: scheme.onSurfaceVariant),
               ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      isFav
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      color: isFav
-                          ? scheme.primary
-                          : scheme.onSurfaceVariant,
-                    ),
-                    onPressed: () =>
-                        context.read<LibraryCubit>().toggleFavorite(track),
-                  ),
-                  if (onAddToPlaylist != null)
-                    IconButton(
-                      icon: Icon(Icons.playlist_add_rounded,
-                          color: scheme.onSurfaceVariant),
-                      onPressed: onAddToPlaylist,
-                    ),
-                  if (onDownload != null)
-                    IconButton(
-                      icon: Icon(Icons.download_rounded,
-                          color: scheme.onSurfaceVariant),
-                      onPressed: onDownload,
-                    ),
-                ],
+              trailing: BlocBuilder<DownloadsCubit, DownloadsState>(
+                builder: (ctx, dl) {
+                  final downloaded = dl.isDownloaded(track.id);
+                  final downloading = dl.isDownloading(track.id);
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          isFav
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: isFav
+                              ? scheme.primary
+                              : scheme.onSurfaceVariant,
+                        ),
+                        onPressed: () => context
+                            .read<LibraryCubit>()
+                            .toggleFavorite(track),
+                      ),
+                      if (onAddToPlaylist != null)
+                        IconButton(
+                          icon: Icon(Icons.playlist_add_rounded,
+                              color: scheme.onSurfaceVariant),
+                          onPressed: onAddToPlaylist,
+                        ),
+                      IconButton(
+                        tooltip: downloaded
+                            ? 'Remove download'
+                            : downloading
+                                ? 'Cancel download'
+                                : 'Download',
+                        icon: downloading
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  value: dl.inProgress[track.id]?.fraction,
+                                ),
+                              )
+                            : Icon(
+                                downloaded
+                                    ? Icons.download_done_rounded
+                                    : Icons.download_rounded,
+                                color: downloaded
+                                    ? scheme.primary
+                                    : scheme.onSurfaceVariant,
+                              ),
+                        onPressed: () {
+                          final cubit = ctx.read<DownloadsCubit>();
+                          if (downloaded) {
+                            cubit.delete(track.id);
+                          } else if (downloading) {
+                            cubit.cancel(track.id);
+                          } else {
+                            cubit.download(track);
+                          }
+                          onDownload?.call();
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
             );
           },
