@@ -2,18 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:rxdart/rxdart.dart';
 
 import '../data/api/soundcloud_api.dart';
 import '../data/api/yandex_music_api.dart';
+import '../data/api/youtube_music_api.dart';
 import '../domain/model/playback_state.dart';
 import '../domain/model/track.dart';
 import '../domain/model/track_source.dart';
+import 'download_service.dart';
 
 class AudioPlayerService {
   final AudioPlayer _player;
   final SoundCloudApi _soundCloudApi;
   final YandexMusicApi? _yandexMusicApi;
+  final YouTubeMusicApi? _youTubeMusicApi;
+  final DownloadService? _downloadService;
 
   final StreamController<PlaybackState> _stateController =
       StreamController<PlaybackState>.broadcast();
@@ -29,13 +32,25 @@ class AudioPlayerService {
     this._soundCloudApi, {
     AudioPlayer? player,
     YandexMusicApi? yandexMusicApi,
+    YouTubeMusicApi? youTubeMusicApi,
+    DownloadService? downloadService,
   })  : _player = player ?? AudioPlayer(),
-        _yandexMusicApi = yandexMusicApi {
+        _yandexMusicApi = yandexMusicApi,
+        _youTubeMusicApi = youTubeMusicApi,
+        _downloadService = downloadService {
     _listenToPlayer();
   }
 
-  Stream<PlaybackState> get stateStream => _stateController.stream
-      .debounceTime(const Duration(milliseconds: 200));
+  /// Raw, unthrottled playback state stream. The previous implementation
+  /// debounced this by 200ms which caused visible jank in the scrubber and
+  /// play/pause button. We now emit at native cadence — consumers that want
+  /// lower rates should use BlocBuilder.buildWhen.
+  Stream<PlaybackState> get stateStream => _stateController.stream;
+
+  /// Convenience: direct position stream from just_audio (~100 Hz on Android
+  /// for smooth seek bars). Use this in hot UI paths to avoid rebuilding the
+  /// full PlayerCubit tree.
+  Stream<Duration> get positionStream => _player.positionStream;
 
   PlaybackState get currentState => _state;
 
@@ -95,7 +110,13 @@ class AudioPlayerService {
     );
     _emit();
     try {
-      await _player.setUrl(url);
+      if (url.startsWith('/') || url.startsWith('file:')) {
+        await _player.setFilePath(
+          url.startsWith('file:') ? Uri.parse(url).toFilePath() : url,
+        );
+      } else {
+        await _player.setUrl(url);
+      }
       await _player.play();
     } catch (e) {
       debugPrint('AudioPlayerService.setUrl failed: $e');
@@ -103,16 +124,24 @@ class AudioPlayerService {
   }
 
   Future<String?> _resolveStreamUrl(Track track) async {
+    // Offline-first: if the track is downloaded locally, always play from disk.
+    final local = await _downloadService?.localPath(track.id);
+    if (local != null) return local;
+
     if (track.source == TrackSource.yandex) {
       final id = track.id.startsWith('ym_')
           ? track.id.substring(3).split(':').first
           : track.id;
-      return await _yandexMusicApi?.getTrackStreamUrl(id);
+      return _yandexMusicApi?.getTrackStreamUrl(id);
     }
     if (track.source == TrackSource.soundcloud &&
         track.streamUrl != null &&
         track.streamUrl!.contains('api-v2.soundcloud.com')) {
-      return await _soundCloudApi.resolveStreamUrl(track.streamUrl!);
+      return _soundCloudApi.resolveStreamUrl(track.streamUrl!);
+    }
+    if (track.source == TrackSource.youtube && _youTubeMusicApi != null) {
+      final id = track.id.startsWith('yt_') ? track.id.substring(3) : track.id;
+      return _youTubeMusicApi.getStreamUrl(id);
     }
     return track.streamUrl;
   }
@@ -186,11 +215,6 @@ class AudioPlayerService {
   }
 
   Future<void> _onCompleted() async {
-    if (_state.repeatMode == PlaybackRepeatMode.one) {
-      await seekTo(Duration.zero);
-      await _player.play();
-      return;
-    }
     await next();
   }
 

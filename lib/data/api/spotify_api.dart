@@ -3,52 +3,75 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../preferences/credentials_store.dart';
+
+/// Spotify Web API client backed by a [CredentialsStore].
+///
+/// Credentials are read lazily from the store so that configuring Spotify in
+/// Settings takes effect without restarting the app. If no credentials are
+/// configured, every call short-circuits and returns an empty result rather
+/// than throwing, so the rest of the app keeps working.
 class SpotifyApi {
   static const _baseUrl = 'https://api.spotify.com/v1';
   static const _tokenUrl = 'https://accounts.spotify.com/api/token';
 
-  final String clientId;
-  final String clientSecret;
+  final CredentialsStore _credentials;
   final Dio _dio;
 
   String? _token;
   DateTime? _expiresAt;
+  String? _cachedForClientId;
 
   SpotifyApi({
-    required this.clientId,
-    required this.clientSecret,
+    required CredentialsStore credentials,
     Dio? dio,
-  }) : _dio = dio ?? Dio();
+  })  : _credentials = credentials,
+        _dio = dio ?? Dio();
 
-  bool get _hasCredentials => clientId.isNotEmpty && clientSecret.isNotEmpty;
+  bool get hasCredentials => _credentials.snapshot.hasSpotify;
 
   Future<String?> _getToken() async {
-    if (!_hasCredentials) return null;
+    await _credentials.ensureLoaded();
+    final snap = _credentials.snapshot;
+    if (!snap.hasSpotify) return null;
+
+    if (_cachedForClientId != snap.spotifyClientId) {
+      _token = null;
+      _expiresAt = null;
+      _cachedForClientId = snap.spotifyClientId;
+    }
+
+    final now = DateTime.now();
     if (_token != null &&
         _expiresAt != null &&
-        DateTime.now()
-            .isBefore(_expiresAt!.subtract(const Duration(minutes: 1)))) {
+        now.isBefore(_expiresAt!.subtract(const Duration(minutes: 1)))) {
       return _token;
     }
+
     try {
-      final credentials = base64.encode(utf8.encode('$clientId:$clientSecret'));
+      final basic = base64
+          .encode(utf8.encode('${snap.spotifyClientId}:${snap.spotifyClientSecret}'));
       final response = await _dio.post<Map<String, dynamic>>(
         _tokenUrl,
         data: 'grant_type=client_credentials',
         options: Options(
           headers: {
-            'Authorization': 'Basic $credentials',
+            'Authorization': 'Basic $basic',
             'Content-Type': 'application/x-www-form-urlencoded',
           },
+          validateStatus: (s) => s != null && s < 500,
         ),
       );
       final data = response.data;
-      if (data == null) return null;
+      if (data == null || response.statusCode != 200) {
+        debugPrint('SpotifyApi._getToken failed: ${response.statusCode} $data');
+        return null;
+      }
       final token = data['access_token'] as String?;
       final expiresIn = data['expires_in'] as int? ?? 3600;
       if (token == null) return null;
       _token = token;
-      _expiresAt = DateTime.now().add(Duration(seconds: expiresIn));
+      _expiresAt = now.add(Duration(seconds: expiresIn));
       return token;
     } catch (e) {
       debugPrint('SpotifyApi._getToken failed: $e');
@@ -63,17 +86,20 @@ class SpotifyApi {
   Future<List<Map<String, dynamic>>> searchTracks(
     String query, {
     int limit = 20,
+    String? market,
   }) async {
     final token = await _getToken();
     if (token == null) return [];
     try {
+      final query0 = <String, dynamic>{
+        'q': query,
+        'type': 'track',
+        'limit': limit,
+      };
+      if (market != null) query0['market'] = market;
       final response = await _dio.get<Map<String, dynamic>>(
         '$_baseUrl/search',
-        queryParameters: {
-          'q': query,
-          'type': 'track',
-          'limit': limit,
-        },
+        queryParameters: query0,
         options: _authOptions(token),
       );
       final items = response.data?['tracks']?['items'] as List?;
@@ -89,7 +115,10 @@ class SpotifyApi {
     String genre, {
     int limit = 20,
   }) async {
-    return searchTracks('genre:$genre', limit: limit);
+    // Spotify removed the genre-seeds & recommendations endpoints in late 2024
+    // for non-allowlisted apps. Fall back to a plain-text search by genre
+    // name which is public.
+    return searchTracks(genre, limit: limit);
   }
 
   Future<Map<String, dynamic>?> getTrack(String id) async {
@@ -107,30 +136,20 @@ class SpotifyApi {
     }
   }
 
+  /// Current "trending" query. /browse/featured-playlists was deprecated by
+  /// Spotify for new apps in Nov 2024; falling back to top-year search which
+  /// is always available.
   Future<List<Map<String, dynamic>>> getTrending({int limit = 20}) async {
-    final token = await _getToken();
-    if (token == null) return [];
-    try {
-      final featured = await _dio.get<Map<String, dynamic>>(
-        '$_baseUrl/browse/featured-playlists',
-        queryParameters: {'limit': 1},
-        options: _authOptions(token),
-      );
-      final items = featured.data?['playlists']?['items'] as List?;
-      if (items == null || items.isEmpty) return [];
-      final playlistId = (items.first as Map<String, dynamic>)['id'] as String?;
-      if (playlistId == null) return [];
-      final tracks = await _dio.get<Map<String, dynamic>>(
-        '$_baseUrl/playlists/$playlistId/tracks',
-        queryParameters: {'limit': limit},
-        options: _authOptions(token),
-      );
-      final trackItems = tracks.data?['items'] as List?;
-      if (trackItems == null) return [];
-      return trackItems.cast<Map<String, dynamic>>();
-    } catch (e) {
-      debugPrint('SpotifyApi.getTrending failed: $e');
-      return [];
+    final now = DateTime.now();
+    final queries = <String>[
+      'year:${now.year}',
+      'year:${now.year - 1}',
+      'top hits',
+    ];
+    for (final q in queries) {
+      final items = await searchTracks(q, limit: limit);
+      if (items.isNotEmpty) return items;
     }
+    return [];
   }
 }

@@ -4,6 +4,7 @@ class TrackSource {
   static const deezer = 'DEEZER';
   static const yandex = 'YANDEX';
   static const spotify = 'SPOTIFY';
+  static const youtube = 'YOUTUBE';
   static const local = 'LOCAL';
 
   static String displayName(String source) {
@@ -18,6 +19,8 @@ class TrackSource {
         return 'Yandex Music';
       case spotify:
         return 'Spotify';
+      case youtube:
+        return 'YouTube Music';
       case local:
         return 'Local';
       default:
@@ -37,6 +40,8 @@ class TrackSource {
         return 'YM';
       case spotify:
         return 'SP';
+      case youtube:
+        return 'YT';
       case local:
         return 'L';
       default:
@@ -45,4 +50,4 @@ class TrackSource {
   }
 }
 
-enum SearchSource { all, soundcloud, yandex, spotify }
+enum SearchSource { all, soundcloud, youtube, yandex, spotify }

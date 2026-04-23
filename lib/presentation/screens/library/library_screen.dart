@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/model/playlist.dart';
+import '../../bloc/downloads/downloads_cubit.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/player/player_cubit.dart';
 import '../../widgets/track_list_item.dart';
@@ -12,7 +13,7 @@ class LibraryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         floatingActionButton: Builder(
           builder: (tabContext) {
@@ -22,8 +23,7 @@ class LibraryScreen extends StatelessWidget {
                 final idx = DefaultTabController.of(tabContext).index;
                 if (idx != 0) return const SizedBox.shrink();
                 return FloatingActionButton.extended(
-                  onPressed: () =>
-                      _showCreatePlaylistDialog(tabContext),
+                  onPressed: () => _showCreatePlaylistDialog(tabContext),
                   icon: const Icon(Icons.add),
                   label: const Text('New playlist'),
                 );
@@ -49,6 +49,7 @@ class LibraryScreen extends StatelessWidget {
                 tabs: [
                   Tab(text: 'Playlists'),
                   Tab(text: 'Liked'),
+                  Tab(text: 'Downloads'),
                 ],
               ),
               const Expanded(
@@ -56,6 +57,7 @@ class LibraryScreen extends StatelessWidget {
                   children: [
                     _PlaylistsTab(),
                     _LikedTab(),
+                    _DownloadsTab(),
                   ],
                 ),
               ),
@@ -175,6 +177,63 @@ class _LikedTab extends StatelessWidget {
                   .playTracks(state.favorites, startIndex: i),
             );
           },
+        );
+      },
+    );
+  }
+}
+
+class _DownloadsTab extends StatelessWidget {
+  const _DownloadsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<DownloadsCubit, DownloadsState>(
+      builder: (ctx, state) {
+        final scheme = Theme.of(context).colorScheme;
+        if (state.tracks.isEmpty && state.inProgress.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.download_rounded,
+                    color: scheme.onSurfaceVariant, size: 64),
+                const SizedBox(height: 12),
+                Text('No downloads yet',
+                    style: TextStyle(color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 4),
+                Text(
+                  'Tap the download icon on any track to save for offline.',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+        final inProgressEntries = state.inProgress.values.toList();
+        return ListView(
+          children: [
+            for (final p in inProgressEntries)
+              ListTile(
+                leading: const Icon(Icons.downloading_rounded),
+                title: Text('Downloading ${p.trackId}',
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: LinearProgressIndicator(value: p.fraction),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () =>
+                      ctx.read<DownloadsCubit>().cancel(p.trackId),
+                ),
+              ),
+            for (var i = 0; i < state.tracks.length; i++)
+              TrackListItem(
+                track: state.tracks[i],
+                onTap: () => ctx
+                    .read<PlayerCubit>()
+                    .playTracks(state.tracks, startIndex: i),
+              ),
+          ],
         );
       },
     );

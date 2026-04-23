@@ -7,9 +7,12 @@ import 'data/api/soundcloud_api.dart';
 import 'data/api/soundcloud_client_id_provider.dart';
 import 'data/api/spotify_api.dart';
 import 'data/api/yandex_music_api.dart';
+import 'data/api/youtube_music_api.dart';
+import 'data/preferences/credentials_store.dart';
 import 'data/preferences/playlist_storage.dart';
 import 'data/repository/track_repository_impl.dart';
 import 'domain/repository/track_repository.dart';
+import 'presentation/bloc/downloads/downloads_cubit.dart';
 import 'presentation/bloc/home/home_cubit.dart';
 import 'presentation/bloc/library/library_cubit.dart';
 import 'presentation/bloc/player/player_cubit.dart';
@@ -22,42 +25,55 @@ import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/widgets/mini_player.dart';
 import 'services/audio_player_service.dart';
+import 'services/download_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const SoundFlowApp());
+  final credentials = CredentialsStore();
+  await credentials.load();
+  runApp(SoundFlowApp(credentials: credentials));
 }
 
 class SoundFlowApp extends StatelessWidget {
-  const SoundFlowApp({super.key});
+  final CredentialsStore credentials;
+
+  const SoundFlowApp({super.key, required this.credentials});
 
   @override
   Widget build(BuildContext context) {
     final clientIdProvider = SoundCloudClientIdProvider();
     final soundCloudApi = SoundCloudApi(clientIdProvider);
-    final jamendoApi = JamendoApi('');
+    final jamendoApi = JamendoApi(credentials: credentials);
     final deezerApi = DeezerApi();
-    final yandexMusicApi = YandexMusicApi();
-    final spotifyApi = SpotifyApi(
-      clientId: const String.fromEnvironment('SPOTIFY_CLIENT_ID'),
-      clientSecret: const String.fromEnvironment('SPOTIFY_CLIENT_SECRET'),
-    );
+    final yandexMusicApi = YandexMusicApi(credentials: credentials);
+    final spotifyApi = SpotifyApi(credentials: credentials);
+    final youTubeMusicApi = YouTubeMusicApi();
     final trackRepository = TrackRepositoryImpl(
       soundCloudApi,
       jamendoApi,
       deezerApi,
       yandexMusicApi,
       spotifyApi,
+      youTubeMusicApi,
+    );
+    final downloadService = DownloadService(
+      soundCloudApi: soundCloudApi,
+      yandexMusicApi: yandexMusicApi,
+      youTubeMusicApi: youTubeMusicApi,
     );
     final audioService = AudioPlayerService(
       soundCloudApi,
       yandexMusicApi: yandexMusicApi,
+      youTubeMusicApi: youTubeMusicApi,
+      downloadService: downloadService,
     );
 
     return MultiRepositoryProvider(
       providers: [
+        RepositoryProvider<CredentialsStore>.value(value: credentials),
         RepositoryProvider<TrackRepository>.value(value: trackRepository),
         RepositoryProvider<YandexMusicApi>.value(value: yandexMusicApi),
+        RepositoryProvider<DownloadService>.value(value: downloadService),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -66,6 +82,7 @@ class SoundFlowApp extends StatelessWidget {
           BlocProvider(create: (_) => HomeCubit(trackRepository)),
           BlocProvider(create: (_) => SearchCubit(trackRepository)),
           BlocProvider(create: (_) => LibraryCubit(PlaylistStorage())),
+          BlocProvider(create: (_) => DownloadsCubit(downloadService)),
         ],
         child: BlocBuilder<ThemeCubit, ThemeMode>(
           builder: (_, mode) => MaterialApp(
