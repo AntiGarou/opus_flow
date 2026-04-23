@@ -10,12 +10,14 @@ import '../domain/model/playback_state.dart';
 import '../domain/model/track.dart';
 import '../domain/model/track_source.dart';
 import 'download_service.dart';
+import 'youtube_match_resolver.dart';
 
 class AudioPlayerService {
   final AudioPlayer _player;
   final SoundCloudApi _soundCloudApi;
   final YandexMusicApi? _yandexMusicApi;
   final YouTubeMusicApi? _youTubeMusicApi;
+  final YouTubeMatchResolver? _youTubeMatchResolver;
   final DownloadService? _downloadService;
 
   final StreamController<PlaybackState> _stateController =
@@ -33,10 +35,12 @@ class AudioPlayerService {
     AudioPlayer? player,
     YandexMusicApi? yandexMusicApi,
     YouTubeMusicApi? youTubeMusicApi,
+    YouTubeMatchResolver? youTubeMatchResolver,
     DownloadService? downloadService,
   })  : _player = player ?? AudioPlayer(),
         _yandexMusicApi = yandexMusicApi,
         _youTubeMusicApi = youTubeMusicApi,
+        _youTubeMatchResolver = youTubeMatchResolver,
         _downloadService = downloadService {
     _listenToPlayer();
   }
@@ -142,6 +146,15 @@ class AudioPlayerService {
     if (track.source == TrackSource.youtube && _youTubeMusicApi != null) {
       final id = track.id.startsWith('yt_') ? track.id.substring(3) : track.id;
       return _youTubeMusicApi.getStreamUrl(id);
+    }
+    // Spotube-style fallback: Spotify and Deezer only expose ~30s previews via
+    // their public APIs. When we have a YouTube client available, look up the
+    // same song on YouTube and stream the full-length version instead.
+    if ((track.source == TrackSource.spotify ||
+            track.source == TrackSource.deezer) &&
+        _youTubeMatchResolver != null) {
+      final matched = await _youTubeMatchResolver.resolveStreamFor(track);
+      if (matched != null && matched.isNotEmpty) return matched;
     }
     return track.streamUrl;
   }

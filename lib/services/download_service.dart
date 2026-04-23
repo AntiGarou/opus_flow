@@ -13,6 +13,7 @@ import '../domain/model/album.dart';
 import '../domain/model/artist.dart';
 import '../domain/model/track.dart';
 import '../domain/model/track_source.dart';
+import 'youtube_match_resolver.dart';
 
 /// Represents the progress of a single download.
 class DownloadProgress {
@@ -42,6 +43,7 @@ class DownloadService {
   final SoundCloudApi? _soundCloudApi;
   final YandexMusicApi? _yandexMusicApi;
   final YouTubeMusicApi? _youTubeMusicApi;
+  final YouTubeMatchResolver? _youTubeMatchResolver;
 
   final StreamController<DownloadProgress> _progressController =
       StreamController<DownloadProgress>.broadcast();
@@ -53,10 +55,12 @@ class DownloadService {
     SoundCloudApi? soundCloudApi,
     YandexMusicApi? yandexMusicApi,
     YouTubeMusicApi? youTubeMusicApi,
+    YouTubeMatchResolver? youTubeMatchResolver,
   })  : _dio = dio ?? Dio(),
         _soundCloudApi = soundCloudApi,
         _yandexMusicApi = yandexMusicApi,
-        _youTubeMusicApi = youTubeMusicApi;
+        _youTubeMusicApi = youTubeMusicApi,
+        _youTubeMatchResolver = youTubeMatchResolver;
 
   Stream<DownloadProgress> get progressStream => _progressController.stream;
 
@@ -111,6 +115,14 @@ class DownloadService {
     if (track.source == TrackSource.youtube && _youTubeMusicApi != null) {
       final id = track.id.startsWith('yt_') ? track.id.substring(3) : track.id;
       return _youTubeMusicApi.getStreamUrl(id);
+    }
+    // Spotube-style fallback for preview-only sources: find a full-length
+    // match on YouTube so the downloaded file isn't a 30s clip.
+    if ((track.source == TrackSource.spotify ||
+            track.source == TrackSource.deezer) &&
+        _youTubeMatchResolver != null) {
+      final matched = await _youTubeMatchResolver.resolveStreamFor(track);
+      if (matched != null && matched.isNotEmpty) return matched;
     }
     return track.streamUrl;
   }
