@@ -129,12 +129,16 @@ class YandexMusicApi {
       });
       final download = data?['result']?['downloadUrl'] as String?;
       if (download != null) {
-        final lyrics = await _dio.get<String>(
-          download,
-          options: Options(responseType: ResponseType.plain),
-        );
-        final text = lyrics.data;
-        if (text != null && text.isNotEmpty) return text;
+        try {
+          final lyrics = await _dio.get<String>(
+            download,
+            options: Options(responseType: ResponseType.plain),
+          );
+          final text = lyrics.data;
+          if (text != null && text.isNotEmpty) return text;
+        } catch (e) {
+          debugPrint('YandexMusicApi.tracksLyrics download failed: $e');
+        }
       }
       // Fallback: /supplement/lyrics has plain fullLyrics for a subset of
       // tracks (e.g. older catalog) and doesn't require the HMAC dance.
